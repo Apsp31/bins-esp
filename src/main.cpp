@@ -615,8 +615,9 @@ void drawBoldAlert(const ServiceDate &svc) {
   tft.fillRect(0, 0, tft.width(), 28, TFT_RED);
   tft.setTextColor(TFT_WHITE, TFT_RED);
   tft.drawCentreString("BINS TONIGHT", tft.width() / 2, 4, 4);
-  drawCentered(42, putOutLabel(svc), TFT_WHITE, 6);
-  drawCentered(101, "6am", TFT_YELLOW, 4);
+  drawCentered(42, putOutLabel(svc), accentFor(svc), 4);
+  drawCentered(76, "Put out", TFT_WHITE, 4);
+  drawCentered(105, "before 6am", TFT_YELLOW, 2);
 }
 
 void drawBoldLayout(bool detailed) {
