@@ -1,7 +1,9 @@
 # Changelog
 
-## Unreleased
+## [0.1.1] - 2026-05-23
 
+- Add automatic firmware patch version bumping during PlatformIO builds.
+- Show the firmware version, Wi-Fi, IP, postcode, UPRN, last fetch, uptime, and health on a fifth status page.
 - Fix page 4 alert layout so it clearly shows which bin type to put out.
 - Add automatic representative UPRN lookup from the St Albans NoticeBoard postcode search.
 - Add captive portal setup with postcode, UPRN fallback, and idle status options.

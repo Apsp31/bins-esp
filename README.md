@@ -10,7 +10,8 @@ Self-contained ESP32 reminder display for St Albans bin collections.
 - Fetches live collection data from the St Albans public Veolia NoticeBoard endpoint.
 - Caches the latest collection dates locally.
 - Shows a large `PUT OUT TONIGHT` alert from 18:00 the evening before collection until 12:00 on collection day.
-- Shows refuse, recycling, food, garden, date/time, and Wi-Fi status when idle.
+- Shows refuse, recycling, date/time, and Wi-Fi status when idle.
+- Includes a versioned status page with Wi-Fi, IP, postcode, UPRN, last fetch, uptime, and health.
 - Refreshes on boot and every 6 hours.
 
 The data endpoint used is:
@@ -44,8 +45,13 @@ If the access point does not appear, the ESP may already have saved Wi-Fi creden
 
 ## Buttons
 
-- Left button: toggle the status screen.
+- Left button: cycle through the five display pages.
 - Right button: refresh collection data now.
+- Hold right button: toggle alert preview mode.
+
+## Versioning
+
+Each PlatformIO build increments the patch version in `VERSION` and regenerates `include/version.h`. Record the resulting version in `CHANGELOG.md` for the build you flash.
 
 ## Windows flashing
 

@@ -7,6 +7,7 @@
 #include <WiFiClientSecure.h>
 #include <WiFiManager.h>
 #include <time.h>
+#include "version.h"
 
 constexpr const char *kPortalSsid = "Bins Display Setup";
 constexpr const char *kDefaultPostcode = "AL15SR";
@@ -16,6 +17,7 @@ constexpr const char *kEndpoint =
     "GetServicesByUprnAndNoticeBoard";
 constexpr const char *kQuickSearchEndpoint = "https://gis.stalbans.gov.uk/NoticeBoard9/quicksearch.asmx";
 constexpr uint32_t kFetchIntervalMs = 6UL * 60UL * 60UL * 1000UL;
+constexpr uint8_t kDisplayModeCount = 5;
 constexpr int kButtonLeft = 0;
 constexpr int kButtonRight = 35;
 
@@ -197,7 +199,7 @@ void loadConfig() {
   config.postcode = prefs.getString("postcode", kDefaultPostcode);
   config.uprn = prefs.getString("uprn", kDefaultUprn);
   config.showStatusWhenIdle = prefs.getBool("idleStatus", true);
-  config.displayMode = prefs.getUChar("displayMode", 0) % 4;
+  config.displayMode = prefs.getUChar("displayMode", 0) % kDisplayModeCount;
 
   bins.refuse.date = prefs.getString("refuseDate", "");
   bins.recycling.date = prefs.getString("recycleDate", "");
@@ -223,7 +225,7 @@ void saveConfig() {
   prefs.putString("postcode", compactPostcode(config.postcode));
   prefs.putString("uprn", config.uprn);
   prefs.putBool("idleStatus", config.showStatusWhenIdle);
-  prefs.putUChar("displayMode", config.displayMode % 4);
+  prefs.putUChar("displayMode", config.displayMode % kDisplayModeCount);
 }
 
 void saveBinCache() {
@@ -502,9 +504,30 @@ void drawFooter(bool detailed) {
 }
 
 void drawModeDot() {
-  for (int i = 0; i < 4; i++) {
-    tft.fillCircle(206 + (i * 9), 124, 2, i == config.displayMode ? TFT_CYAN : TFT_DARKGREY);
+  for (int i = 0; i < kDisplayModeCount; i++) {
+    tft.fillCircle(196 + (i * 9), 124, 2, i == config.displayMode ? TFT_CYAN : TFT_DARKGREY);
   }
+}
+
+String compactTimeText(time_t value) {
+  if (value < 1700000000) return "Never";
+  tm info = *localtime(&value);
+  char buf[24];
+  strftime(buf, sizeof(buf), "%a %H:%M", &info);
+  return String(buf);
+}
+
+String uptimeText() {
+  uint32_t totalSeconds = millis() / 1000UL;
+  uint32_t hours = totalSeconds / 3600UL;
+  uint32_t minutes = (totalSeconds % 3600UL) / 60UL;
+  if (hours > 0) return String(hours) + "h " + String(minutes) + "m";
+  return String(minutes) + "m";
+}
+
+String wifiSummary() {
+  if (WiFi.status() != WL_CONNECTED) return "Offline";
+  return WiFi.SSID() + " " + String(WiFi.RSSI()) + "dBm";
 }
 
 String alertLabel() {
@@ -637,11 +660,40 @@ void drawBoldLayout(bool detailed) {
   if (detailed) drawModeDot();
 }
 
+void drawStatusLayout() {
+  tft.fillScreen(TFT_BLACK);
+  drawText(6, 0, "Bins v" + String(FIRMWARE_VERSION), TFT_CYAN, 4);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.drawRightString(localTimeText("%H:%M"), tft.width() - 8, 6, 4);
+
+  drawText(8, 35, "Wi-Fi", TFT_LIGHTGREY, 2);
+  tft.setTextColor(WiFi.status() == WL_CONNECTED ? TFT_GREEN : TFT_RED, TFT_BLACK);
+  tft.drawString(wifiSummary().substring(0, 24), 66, 35, 2);
+
+  drawText(8, 53, "IP", TFT_LIGHTGREY, 2);
+  drawText(66, 53, WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString() : "--", TFT_WHITE, 2);
+
+  drawText(8, 71, "Postcode", TFT_LIGHTGREY, 2);
+  drawText(66, 71, compactPostcode(config.postcode), TFT_WHITE, 2);
+
+  drawText(8, 89, "UPRN", TFT_LIGHTGREY, 2);
+  drawText(66, 89, config.uprn.substring(0, 18), TFT_WHITE, 2);
+
+  drawText(8, 107, "Fetch", TFT_LIGHTGREY, 2);
+  drawText(66, 107, compactTimeText(bins.lastFetch), bins.lastError.length() ? TFT_YELLOW : TFT_WHITE, 2);
+
+  const String health = bins.lastError.length() ? bins.lastError : "OK";
+  tft.setTextColor(bins.lastError.length() ? TFT_YELLOW : TFT_GREEN, TFT_BLACK);
+  tft.drawString(("Up " + uptimeText() + " " + health).substring(0, 24), 8, 120, 2);
+  drawModeDot();
+}
+
 void drawNormalLayout(bool detailed) {
   if (config.displayMode == 0) drawFocusLayout(detailed);
   if (config.displayMode == 1) drawStackLayout(detailed);
   if (config.displayMode == 2) drawClockLayout(detailed);
   if (config.displayMode == 3) drawBoldLayout(detailed);
+  if (config.displayMode == 4) drawStatusLayout();
 }
 
 void drawAlertLayout(const ServiceDate &svc) {
@@ -649,6 +701,7 @@ void drawAlertLayout(const ServiceDate &svc) {
   if (config.displayMode == 1) drawStackAlert(svc);
   if (config.displayMode == 2) drawTimelineAlert(svc);
   if (config.displayMode == 3) drawBoldAlert(svc);
+  if (config.displayMode == 4) drawFocusAlert(svc);
 }
 
 void drawScreen() {
@@ -664,7 +717,7 @@ void handleButtons() {
   bool left = digitalRead(kButtonLeft);
   bool right = digitalRead(kButtonRight);
   if (!left && lastLeft) {
-    config.displayMode = (config.displayMode + 1) % 4;
+    config.displayMode = (config.displayMode + 1) % kDisplayModeCount;
     saveConfig();
     drawScreen();
   }
