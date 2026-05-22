@@ -14,6 +14,7 @@ constexpr const char *kDefaultUprn = "10001062494";
 constexpr const char *kEndpoint =
     "https://gis.stalbans.gov.uk/NoticeBoard9/VeoliaProxy.NoticeBoard.asmx/"
     "GetServicesByUprnAndNoticeBoard";
+constexpr const char *kQuickSearchEndpoint = "https://gis.stalbans.gov.uk/NoticeBoard9/quicksearch.asmx";
 constexpr uint32_t kFetchIntervalMs = 6UL * 60UL * 60UL * 1000UL;
 constexpr int kButtonLeft = 0;
 constexpr int kButtonRight = 35;
@@ -104,6 +105,34 @@ String shortDate(const ServiceDate &svc) {
 
 String dateOnly(const String &iso) {
   return iso.length() >= 10 ? iso.substring(0, 10) : "";
+}
+
+String tagValueAfter(const String &source, const String &tag, int startAt) {
+  const String openTag = "<" + tag + ">";
+  const String closeTag = "</" + tag + ">";
+  int start = source.indexOf(openTag, startAt);
+  if (start < 0) return "";
+  start += openTag.length();
+  int end = source.indexOf(closeTag, start);
+  if (end < 0) return "";
+  return source.substring(start, end);
+}
+
+String firstUprnFromQuickSearchXml(const String &xml) {
+  int pos = 0;
+  while (true) {
+    int columnStart = xml.indexOf("<Column>", pos);
+    if (columnStart < 0) return "";
+    int columnEnd = xml.indexOf("</Column>", columnStart);
+    if (columnEnd < 0) return "";
+    String column = xml.substring(columnStart, columnEnd);
+    if (tagValueAfter(column, "Name", 0) == "UPRN") {
+      String uprn = tagValueAfter(column, "Value", 0);
+      uprn.trim();
+      return uprn;
+    }
+    pos = columnEnd + 9;
+  }
 }
 
 void drawText(int x, int y, const String &text, uint16_t color, uint8_t font = 2) {
@@ -205,6 +234,43 @@ void saveBinCache() {
   prefs.putLong64("lastFetch", bins.lastFetch);
 }
 
+bool lookupUprnForPostcode(const String &postcode, String &uprnOut) {
+  if (WiFi.status() != WL_CONNECTED) return false;
+
+  WiFiClientSecure client;
+  client.setInsecure();
+
+  HTTPClient http;
+  if (!http.begin(client, kQuickSearchEndpoint)) return false;
+
+  String body =
+      "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+      "<soap:Envelope xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
+      "xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" "
+      "xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">"
+      "<soap:Body>"
+      "<GetMoreResults xmlns=\"http://tempuri.org/\">"
+      "<filter>" + xmlEscape(postcode) + "</filter>"
+      "<startIndex>0</startIndex>"
+      "<endIndex>1</endIndex>"
+      "<searchId>4</searchId>"
+      "</GetMoreResults>"
+      "</soap:Body>"
+      "</soap:Envelope>";
+
+  http.addHeader("Content-Type", "text/xml; charset=utf-8");
+  http.addHeader("SOAPAction", "\"http://tempuri.org/GetMoreResults\"");
+  int status = http.POST(body);
+  String response = http.getString();
+  http.end();
+
+  if (status != 200) return false;
+  String uprn = firstUprnFromQuickSearchXml(response);
+  if (uprn.length() == 0) return false;
+  uprnOut = uprn;
+  return true;
+}
+
 void showSetupScreen() {
   tft.fillScreen(TFT_BLACK);
   drawCentered(18, "Bins Display", TFT_CYAN, 4);
@@ -247,6 +313,7 @@ void connectWifi(bool forcePortal) {
   wm.addParameter(&uprnParam);
   wm.addParameter(&statusParam);
 
+  const String previousPostcode = compactPostcode(config.postcode);
   showSetupScreen();
   bool connected = forcePortal ? wm.startConfigPortal(kPortalSsid) : wm.autoConnect(kPortalSsid);
   if (!connected) {
@@ -257,6 +324,21 @@ void connectWifi(bool forcePortal) {
   config.uprn = String(uprnParam.getValue());
   config.uprn.trim();
   config.showStatusWhenIdle = String(statusParam.getValue()) != "0";
+
+  if (config.postcode.length() > 0 && (config.postcode != previousPostcode || config.uprn.length() == 0)) {
+    tft.fillScreen(TFT_BLACK);
+    drawCentered(42, "Finding UPRN", TFT_CYAN, 4);
+    drawCentered(82, config.postcode, TFT_WHITE, 4);
+    String foundUprn;
+    if (lookupUprnForPostcode(config.postcode, foundUprn)) {
+      config.uprn = foundUprn;
+      drawCentered(116, "Found", TFT_GREEN, 2);
+      delay(900);
+    } else {
+      drawCentered(116, "UPRN unchanged", TFT_YELLOW, 2);
+      delay(1200);
+    }
+  }
   saveConfig();
 }
 

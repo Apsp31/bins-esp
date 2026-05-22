@@ -6,6 +6,7 @@ Self-contained ESP32 reminder display for St Albans bin collections.
 
 - Connects to Wi-Fi using a captive portal.
 - Defaults to postcode `AL15SR` and UPRN `10001062494`.
+- Looks up a representative UPRN automatically when the postcode is changed.
 - Fetches live collection data from the St Albans public Veolia NoticeBoard endpoint.
 - Caches the latest collection dates locally.
 - Shows a large `PUT OUT TONIGHT` alert from 18:00 the evening before collection until 12:00 on collection day.
@@ -35,9 +36,9 @@ If your board turns out to be an ESP32-S3 T-Display, the display pin mapping and
 4. Open `http://192.168.4.1` if the setup page does not open automatically.
 5. Enter Wi-Fi details.
 6. Leave postcode as `AL15SR` or change it.
-7. Leave UPRN as `10001062494` or change it to your property UPRN.
+7. Leave UPRN as `10001062494`, clear it, or change the postcode to trigger an automatic lookup.
 
-The live St Albans collection endpoint requires a UPRN. The postcode is stored for convenience, but the UPRN is the value used for collection lookups.
+The live St Albans collection endpoint requires a UPRN. When the postcode changes, the firmware asks the St Albans NoticeBoard quick-search service for the first address in that postcode and stores its UPRN. This assumes properties in the same postcode share the same collection schedule.
 
 If the access point does not appear, the ESP may already have saved Wi-Fi credentials from a previous sketch. Hold the left button while resetting or reconnecting USB. The board will clear saved setup and force the `Bins Display Setup` portal to stay open.
 
