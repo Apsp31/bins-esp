@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.6] - 2026-06-01
+
+- Add two CYD-only large-screen display pages: a next-collection dashboard and a two-card refuse/recycling view.
+- Expand the CYD page cycle to seven pages while keeping smaller displays on the original five pages.
+- Add a wide CYD alert layout for the large-screen-only pages.
+
 ## [0.1.5] - 2026-06-01
 
 - Remove conflicting CYD TFT width and height overrides so the ILI9341 driver can use its native geometry.

@@ -21,7 +21,8 @@ constexpr const char *kEndpoint =
     "GetServicesByUprnAndNoticeBoard";
 constexpr const char *kQuickSearchEndpoint = "https://gis.stalbans.gov.uk/NoticeBoard9/quicksearch.asmx";
 constexpr uint32_t kFetchIntervalMs = 6UL * 60UL * 60UL * 1000UL;
-constexpr uint8_t kDisplayModeCount = 5;
+constexpr uint8_t kBaseDisplayModeCount = 5;
+constexpr uint8_t kLargeDisplayModeCount = 7;
 #ifndef TFT_ROTATION
 #define TFT_ROTATION 1
 #endif
@@ -177,6 +178,10 @@ bool largeScreen() {
   return tft.height() >= 200;
 }
 
+uint8_t displayModeCount() {
+  return largeScreen() ? kLargeDisplayModeCount : kBaseDisplayModeCount;
+}
+
 int bottomY(int offset = 16) {
   return max(0, tft.height() - offset);
 }
@@ -265,7 +270,7 @@ void loadConfig() {
   config.postcode = prefs.getString("postcode", kDefaultPostcode);
   config.uprn = prefs.getString("uprn", kDefaultUprn);
   config.showStatusWhenIdle = prefs.getBool("idleStatus", true);
-  config.displayMode = prefs.getUChar("displayMode", 0) % kDisplayModeCount;
+  config.displayMode = prefs.getUChar("displayMode", 0) % displayModeCount();
 
   bins.refuse.date = prefs.getString("refuseDate", "");
   bins.recycling.date = prefs.getString("recycleDate", "");
@@ -291,7 +296,7 @@ void saveConfig() {
   prefs.putString("postcode", compactPostcode(config.postcode));
   prefs.putString("uprn", config.uprn);
   prefs.putBool("idleStatus", config.showStatusWhenIdle);
-  prefs.putUChar("displayMode", config.displayMode % kDisplayModeCount);
+  prefs.putUChar("displayMode", config.displayMode % displayModeCount());
 }
 
 void saveBinCache() {
@@ -570,9 +575,10 @@ void drawFooter(bool detailed) {
 }
 
 void drawModeDot() {
-  const int firstX = tft.width() - 44;
+  const uint8_t count = displayModeCount();
+  const int firstX = tft.width() - ((count * 9) - 1);
   const int y = bottomY(11);
-  for (int i = 0; i < kDisplayModeCount; i++) {
+  for (int i = 0; i < count; i++) {
     tft.fillCircle(firstX + (i * 9), y, 2, i == config.displayMode ? TFT_CYAN : TFT_DARKGREY);
   }
 }
@@ -785,12 +791,75 @@ void drawStatusLayout() {
   drawModeDot();
 }
 
+void drawWideAlert(const ServiceDate &svc) {
+  tft.fillScreen(TFT_BLACK);
+  tft.fillRect(0, 0, tft.width(), 54, TFT_RED);
+  tft.setTextColor(TFT_WHITE, TFT_RED);
+  tft.drawString("TONIGHT", 12, 12, 4);
+  tft.drawRightString(localTimeText("%H:%M"), tft.width() - 12, 12, 4);
+  drawText(14, 76, putOutLabel(svc), TFT_WHITE, 6);
+  drawText(16, 150, "Put out before 6am", TFT_YELLOW, 4);
+  drawText(18, 206, shortDate(svc), accentFor(svc), 2);
+  drawModeDot();
+}
+
+void drawLargeDashboardLayout(bool detailed) {
+  ServiceDate first;
+  ServiceDate second;
+  orderedMainCollections(first, second);
+  tft.fillScreen(TFT_BLACK);
+
+  drawText(10, 8, localTimeText("%H:%M"), TFT_CYAN, 6);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.drawRightString(localTimeText("%A"), tft.width() - 10, 14, 4);
+  tft.drawRightString(localTimeText("%d %B"), tft.width() - 10, 48, 2);
+
+  tft.fillRect(0, 92, 10, 92, accentFor(first));
+  drawText(20, 92, "Next", TFT_LIGHTGREY, 2);
+  drawText(20, 112, first.label, accentFor(first), 4);
+  drawText(20, 150, friendlyDay(first), TFT_WHITE, 4);
+  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+  tft.drawRightString(countdownText(first), tft.width() - 12, 130, 4);
+
+  if (second.valid) {
+    tft.drawFastHLine(20, 194, tft.width() - 40, TFT_DARKGREY);
+    drawText(20, 204, "Then " + second.label, TFT_LIGHTGREY, 2);
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.drawRightString(shortDate(second), tft.width() - 12, 204, 2);
+  }
+  if (detailed) drawModeDot();
+}
+
+void drawLargeCardsLayout(bool detailed) {
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_CYAN, TFT_BLACK);
+  tft.drawString(localTimeText("%a %d %b"), 10, 8, 4);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.drawRightString(localTimeText("%H:%M"), tft.width() - 10, 8, 4);
+
+  auto drawCard = [](int x, const ServiceDate &svc) {
+    const uint16_t accent = accentFor(svc);
+    tft.drawRect(x, 56, 145, 136, TFT_DARKGREY);
+    tft.fillRect(x, 56, 145, 8, accent);
+    drawText(x + 10, 76, svc.label, accent, 4);
+    drawText(x + 10, 116, friendlyDay(svc), TFT_WHITE, 4);
+    drawText(x + 10, 154, conciseDate(svc), TFT_YELLOW, 2);
+  };
+
+  drawCard(10, bins.refuse);
+  drawCard(165, bins.recycling);
+  drawFooter(detailed);
+  drawModeDot();
+}
+
 void drawNormalLayout(bool detailed) {
   if (config.displayMode == 0) drawFocusLayout(detailed);
   if (config.displayMode == 1) drawStackLayout(detailed);
   if (config.displayMode == 2) drawClockLayout(detailed);
   if (config.displayMode == 3) drawBoldLayout(detailed);
   if (config.displayMode == 4) drawStatusLayout();
+  if (largeScreen() && config.displayMode == 5) drawLargeDashboardLayout(detailed);
+  if (largeScreen() && config.displayMode == 6) drawLargeCardsLayout(detailed);
 }
 
 void drawAlertLayout(const ServiceDate &svc) {
@@ -799,6 +868,7 @@ void drawAlertLayout(const ServiceDate &svc) {
   if (config.displayMode == 2) drawTimelineAlert(svc);
   if (config.displayMode == 3) drawBoldAlert(svc);
   if (config.displayMode == 4) drawFocusAlert(svc);
+  if (largeScreen() && config.displayMode >= 5) drawWideAlert(svc);
 }
 
 void drawScreen() {
@@ -811,7 +881,7 @@ void drawScreen() {
 }
 
 void cycleDisplayMode() {
-  config.displayMode = (config.displayMode + 1) % kDisplayModeCount;
+  config.displayMode = (config.displayMode + 1) % displayModeCount();
   saveConfig();
   drawScreen();
 }
