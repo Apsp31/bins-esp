@@ -18,6 +18,9 @@ constexpr const char *kEndpoint =
 constexpr const char *kQuickSearchEndpoint = "https://gis.stalbans.gov.uk/NoticeBoard9/quicksearch.asmx";
 constexpr uint32_t kFetchIntervalMs = 6UL * 60UL * 60UL * 1000UL;
 constexpr uint8_t kDisplayModeCount = 5;
+#ifndef TFT_ROTATION
+#define TFT_ROTATION 1
+#endif
 #if defined(CHEAP_YELLOW_DISPLAY)
 constexpr int kButtonLeft = 0;
 constexpr int kButtonRight = -1;
@@ -65,6 +68,10 @@ bool lastRight = true;
 bool previewAlert = false;
 bool rightLongHandled = false;
 uint32_t rightPressedAtMs = 0;
+#if defined(CHEAP_YELLOW_DISPLAY)
+bool leftLongHandled = false;
+uint32_t leftPressedAtMs = 0;
+#endif
 #if defined(CYD_TOUCH_ENABLED)
 bool lastTouch = false;
 bool touchLongHandled = false;
@@ -170,6 +177,13 @@ bool readButton(int pin) {
   if (pin < 0) return true;
   return digitalRead(pin);
 }
+
+#if defined(CYD_TOUCH_ENABLED)
+void configureTouch() {
+  uint16_t calData[5] = {275, 3620, 264, 3532, 7};
+  tft.setTouch(calData);
+}
+#endif
 
 String localTimeText(const char *fmt) {
   time_t now = time(nullptr);
@@ -814,9 +828,25 @@ void handleTouch() {
 void handleButtons() {
   bool left = readButton(kButtonLeft);
   bool right = readButton(kButtonRight);
+#if defined(CHEAP_YELLOW_DISPLAY)
+  if (!left && lastLeft) {
+    leftPressedAtMs = millis();
+    leftLongHandled = false;
+  }
+
+  if (!left && !leftLongHandled && millis() - leftPressedAtMs > 900UL) {
+    refreshCollections();
+    leftLongHandled = true;
+  }
+
+  if (left && !lastLeft && !leftLongHandled) {
+    cycleDisplayMode();
+  }
+#else
   if (!left && lastLeft) {
     cycleDisplayMode();
   }
+#endif
 
   if (!right && lastRight) {
     rightPressedAtMs = millis();
@@ -846,7 +876,10 @@ void setup() {
   if (kButtonRight >= 0) pinMode(kButtonRight, INPUT_PULLUP);
 
   tft.init();
-  tft.setRotation(1);
+  tft.setRotation(TFT_ROTATION);
+#if defined(CYD_TOUCH_ENABLED)
+  configureTouch();
+#endif
   tft.fillScreen(TFT_BLACK);
   tft.setTextDatum(TL_DATUM);
 

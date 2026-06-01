@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3] - 2026-06-01
+
+- Rotate the Cheap Yellow Display target to landscape orientation.
+- Lower CYD display SPI speed to reduce visible tearing.
+- Fix the TFT_eSPI touch frequency build flag and apply CYD touch calibration data.
+- Add CYD single-button long press refresh while keeping short press as page cycling.
+
 ## [0.1.2] - 2026-06-01
 
 - Add a Cheap Yellow Display PlatformIO environment for the ESP32 2.8 inch 320x240 ILI9341 touchscreen board.

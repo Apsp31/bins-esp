@@ -58,6 +58,8 @@ If the access point does not appear, the ESP may already have saved Wi-Fi creden
 - CYD left-half touch: cycle through the five display pages.
 - CYD right-half touch: refresh collection data now.
 - CYD hold right-half touch: toggle alert preview mode.
+- CYD user button short press: cycle through the five display pages.
+- CYD user button long press: refresh collection data now.
 
 ## Versioning
 
