@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.12] - 2026-06-01
+
+- Bake in the CYD colour calibration values selected on-device: red `07FF`, green `E0FF`, blue `FFE0`, yellow `001F`.
+- Route semantic UI colours through the calibrated palette across alerts, status, clock, setup, and collection pages.
+- Remove the temporary serial colour reporter used to read back calibration values.
+
 ## [0.1.10] - 2026-06-01
 
 - Add a CYD-only colour swatch calibration page using touch selection for red, green, blue, and yellow.
