@@ -604,6 +604,14 @@ String wifiSummary() {
   return WiFi.SSID() + " " + String(WiFi.RSSI()) + "dBm";
 }
 
+uint16_t warningBackgroundColor() {
+#if defined(CHEAP_YELLOW_DISPLAY)
+  return TFT_BLUE;
+#else
+  return TFT_RED;
+#endif
+}
+
 String alertLabel() {
   String label;
   if (inAlertWindow(bins.refuse)) {
@@ -826,20 +834,30 @@ void drawAnalogClockFace(int cx, int cy, int radius, uint16_t faceColor, uint16_
 
   const float minuteAngle = (info.tm_min * 6 - 90) * DEG_TO_RAD;
   const float hourAngle = (((info.tm_hour % 12) * 30) + (info.tm_min * 0.5f) - 90) * DEG_TO_RAD;
-  tft.drawLine(cx, cy, cx + cos(hourAngle) * (radius * 0.48f), cy + sin(hourAngle) * (radius * 0.48f), handColor);
-  tft.drawLine(cx + 1, cy, cx + 1 + cos(hourAngle) * (radius * 0.48f), cy + sin(hourAngle) * (radius * 0.48f), handColor);
-  tft.drawLine(cx, cy, cx + cos(minuteAngle) * (radius * 0.72f), cy + sin(minuteAngle) * (radius * 0.72f), TFT_CYAN);
+  auto drawThickHand = [](float angle, float length, int halfWidth, uint16_t color, int cx, int cy) {
+    const int tipX = cx + cos(angle) * length;
+    const int tipY = cy + sin(angle) * length;
+    const float sideAngle = angle + HALF_PI;
+    for (int offset = -halfWidth; offset <= halfWidth; offset++) {
+      const int ox = cos(sideAngle) * offset;
+      const int oy = sin(sideAngle) * offset;
+      tft.drawLine(cx + ox, cy + oy, tipX + ox, tipY + oy, color);
+    }
+  };
+  drawThickHand(hourAngle, radius * 0.48f, 3, handColor, cx, cy);
+  drawThickHand(minuteAngle, radius * 0.72f, 2, TFT_CYAN, cx, cy);
   tft.fillCircle(cx, cy, 4, TFT_YELLOW);
 }
 
 void drawAnalogClockAlert(const ServiceDate &svc) {
-  tft.fillScreen(TFT_RED);
-  tft.setTextColor(TFT_WHITE, TFT_RED);
+  const uint16_t bg = warningBackgroundColor();
+  tft.fillScreen(bg);
+  tft.setTextColor(TFT_WHITE, bg);
   tft.drawCentreString("BINS TONIGHT", tft.width() / 2, 12, 4);
-  tft.drawCentreString(putOutLabel(svc), tft.width() / 2, 58, 6);
-  tft.setTextColor(TFT_YELLOW, TFT_RED);
-  tft.drawCentreString("Put out before 6am", tft.width() / 2, 132, 4);
-  tft.setTextColor(TFT_WHITE, TFT_RED);
+  tft.drawCentreString(putOutLabel(svc), tft.width() / 2, 70, 4);
+  tft.setTextColor(TFT_YELLOW, bg);
+  tft.drawCentreString("Put out before 6am", tft.width() / 2, 126, 4);
+  tft.setTextColor(TFT_WHITE, bg);
   tft.drawCentreString(localTimeText("%H:%M") + "  " + shortDate(svc), tft.width() / 2, 190, 4);
 }
 

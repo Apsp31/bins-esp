@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.8] - 2026-06-01
+
+- Make the CYD analog clock hands thicker for better readability.
+- Fix the CYD analog alert page so it shows the bin type using a text-capable font.
+- Correct the CYD analog alert background colour so the warning renders red on the panel.
+
 ## [0.1.7] - 2026-06-01
 
 - Replace the seventh CYD page with a large analog clock, day, date, and next collection summary.
