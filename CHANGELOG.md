@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.9] - 2026-06-01
+
+- Replace the CYD analog alert colour-name workaround with an explicit byte-swapped red background value.
+
 ## [0.1.8] - 2026-06-01
 
 - Make the CYD analog clock hands thicker for better readability.

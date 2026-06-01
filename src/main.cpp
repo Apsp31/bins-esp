@@ -604,9 +604,13 @@ String wifiSummary() {
   return WiFi.SSID() + " " + String(WiFi.RSSI()) + "dBm";
 }
 
-uint16_t warningBackgroundColor() {
+uint16_t swapRgb565Bytes(uint16_t color) {
+  return (color >> 8) | (color << 8);
+}
+
+uint16_t analogAlertBackgroundColor() {
 #if defined(CHEAP_YELLOW_DISPLAY)
-  return TFT_BLUE;
+  return swapRgb565Bytes(TFT_RED);
 #else
   return TFT_RED;
 #endif
@@ -850,7 +854,7 @@ void drawAnalogClockFace(int cx, int cy, int radius, uint16_t faceColor, uint16_
 }
 
 void drawAnalogClockAlert(const ServiceDate &svc) {
-  const uint16_t bg = warningBackgroundColor();
+  const uint16_t bg = analogAlertBackgroundColor();
   tft.fillScreen(bg);
   tft.setTextColor(TFT_WHITE, bg);
   tft.drawCentreString("BINS TONIGHT", tft.width() / 2, 12, 4);
