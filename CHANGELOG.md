@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.7] - 2026-06-01
+
+- Replace the seventh CYD page with a large analog clock, day, date, and next collection summary.
+- Add a dedicated red bins warning alert for the CYD analog clock page.
+
 ## [0.1.6] - 2026-06-01
 
 - Add two CYD-only large-screen display pages: a next-collection dashboard and a two-card refuse/recycling view.

@@ -803,6 +803,46 @@ void drawWideAlert(const ServiceDate &svc) {
   drawModeDot();
 }
 
+void drawAnalogClockFace(int cx, int cy, int radius, uint16_t faceColor, uint16_t handColor) {
+  time_t now = time(nullptr);
+  if (now < 1700000000) {
+    drawCentered(cy - 12, "Syncing", handColor, 4);
+    return;
+  }
+
+  tm info = *localtime(&now);
+  tft.drawCircle(cx, cy, radius, faceColor);
+  tft.drawCircle(cx, cy, radius - 1, faceColor);
+
+  for (int tick = 0; tick < 60; tick++) {
+    const float angle = (tick * 6 - 90) * DEG_TO_RAD;
+    const int outerX = cx + cos(angle) * radius;
+    const int outerY = cy + sin(angle) * radius;
+    const int inner = tick % 5 == 0 ? radius - 10 : radius - 5;
+    const int innerX = cx + cos(angle) * inner;
+    const int innerY = cy + sin(angle) * inner;
+    tft.drawLine(innerX, innerY, outerX, outerY, tick % 5 == 0 ? handColor : faceColor);
+  }
+
+  const float minuteAngle = (info.tm_min * 6 - 90) * DEG_TO_RAD;
+  const float hourAngle = (((info.tm_hour % 12) * 30) + (info.tm_min * 0.5f) - 90) * DEG_TO_RAD;
+  tft.drawLine(cx, cy, cx + cos(hourAngle) * (radius * 0.48f), cy + sin(hourAngle) * (radius * 0.48f), handColor);
+  tft.drawLine(cx + 1, cy, cx + 1 + cos(hourAngle) * (radius * 0.48f), cy + sin(hourAngle) * (radius * 0.48f), handColor);
+  tft.drawLine(cx, cy, cx + cos(minuteAngle) * (radius * 0.72f), cy + sin(minuteAngle) * (radius * 0.72f), TFT_CYAN);
+  tft.fillCircle(cx, cy, 4, TFT_YELLOW);
+}
+
+void drawAnalogClockAlert(const ServiceDate &svc) {
+  tft.fillScreen(TFT_RED);
+  tft.setTextColor(TFT_WHITE, TFT_RED);
+  tft.drawCentreString("BINS TONIGHT", tft.width() / 2, 12, 4);
+  tft.drawCentreString(putOutLabel(svc), tft.width() / 2, 58, 6);
+  tft.setTextColor(TFT_YELLOW, TFT_RED);
+  tft.drawCentreString("Put out before 6am", tft.width() / 2, 132, 4);
+  tft.setTextColor(TFT_WHITE, TFT_RED);
+  tft.drawCentreString(localTimeText("%H:%M") + "  " + shortDate(svc), tft.width() / 2, 190, 4);
+}
+
 void drawLargeDashboardLayout(bool detailed) {
   ServiceDate first;
   ServiceDate second;
@@ -830,25 +870,20 @@ void drawLargeDashboardLayout(bool detailed) {
   if (detailed) drawModeDot();
 }
 
-void drawLargeCardsLayout(bool detailed) {
+void drawLargeAnalogClockLayout(bool detailed) {
+  ServiceDate first = nextMainCollection();
   tft.fillScreen(TFT_BLACK);
+  drawAnalogClockFace(98, 130, 82, TFT_LIGHTGREY, TFT_WHITE);
+
   tft.setTextColor(TFT_CYAN, TFT_BLACK);
-  tft.drawString(localTimeText("%a %d %b"), 10, 8, 4);
+  tft.drawString(localTimeText("%H:%M"), 204, 30, 4);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.drawRightString(localTimeText("%H:%M"), tft.width() - 10, 8, 4);
-
-  auto drawCard = [](int x, const ServiceDate &svc) {
-    const uint16_t accent = accentFor(svc);
-    tft.drawRect(x, 56, 145, 136, TFT_DARKGREY);
-    tft.fillRect(x, 56, 145, 8, accent);
-    drawText(x + 10, 76, svc.label, accent, 4);
-    drawText(x + 10, 116, friendlyDay(svc), TFT_WHITE, 4);
-    drawText(x + 10, 154, conciseDate(svc), TFT_YELLOW, 2);
-  };
-
-  drawCard(10, bins.refuse);
-  drawCard(165, bins.recycling);
-  drawFooter(detailed);
+  tft.drawString(localTimeText("%A"), 204, 94, 4);
+  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+  tft.drawString(localTimeText("%d %B"), 204, 128, 4);
+  tft.drawFastHLine(204, 168, 104, TFT_DARKGREY);
+  drawText(204, 182, "Next", TFT_LIGHTGREY, 2);
+  drawText(204, 202, first.label + " " + friendlyDay(first), accentFor(first), 2);
   drawModeDot();
 }
 
@@ -859,7 +894,7 @@ void drawNormalLayout(bool detailed) {
   if (config.displayMode == 3) drawBoldLayout(detailed);
   if (config.displayMode == 4) drawStatusLayout();
   if (largeScreen() && config.displayMode == 5) drawLargeDashboardLayout(detailed);
-  if (largeScreen() && config.displayMode == 6) drawLargeCardsLayout(detailed);
+  if (largeScreen() && config.displayMode == 6) drawLargeAnalogClockLayout(detailed);
 }
 
 void drawAlertLayout(const ServiceDate &svc) {
@@ -868,7 +903,8 @@ void drawAlertLayout(const ServiceDate &svc) {
   if (config.displayMode == 2) drawTimelineAlert(svc);
   if (config.displayMode == 3) drawBoldAlert(svc);
   if (config.displayMode == 4) drawFocusAlert(svc);
-  if (largeScreen() && config.displayMode >= 5) drawWideAlert(svc);
+  if (largeScreen() && config.displayMode == 5) drawWideAlert(svc);
+  if (largeScreen() && config.displayMode == 6) drawAnalogClockAlert(svc);
 }
 
 void drawScreen() {
