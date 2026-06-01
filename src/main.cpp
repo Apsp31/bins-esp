@@ -6,6 +6,10 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <WiFiManager.h>
+#if defined(CYD_TOUCH_ENABLED)
+#include <SPI.h>
+#include <XPT2046_Touchscreen.h>
+#endif
 #include <time.h>
 #include "version.h"
 
@@ -31,6 +35,10 @@ constexpr int kButtonRight = 35;
 
 TFT_eSPI tft;
 Preferences prefs;
+#if defined(CYD_TOUCH_ENABLED)
+SPIClass touchSpi(VSPI);
+XPT2046_Touchscreen touch(TOUCH_CS, CYD_TOUCH_IRQ);
+#endif
 
 struct ServiceDate {
   String name;
@@ -77,8 +85,6 @@ bool lastTouch = false;
 bool touchLongHandled = false;
 bool touchRightSide = false;
 uint32_t touchPressedAtMs = 0;
-uint16_t touchStartX = 0;
-uint16_t touchStartY = 0;
 #endif
 
 String xmlEscape(const String &value) {
@@ -193,22 +199,16 @@ void disableUnusedSpiDevices() {
 
 #if defined(CYD_TOUCH_ENABLED)
 void configureTouch() {
-  uint16_t calData[5] = {275, 3620, 264, 3532, 7};
-  tft.setTouch(calData);
+  touchSpi.begin(CYD_TOUCH_CLK, CYD_TOUCH_MISO, CYD_TOUCH_MOSI, TOUCH_CS);
+  touch.begin(touchSpi);
+  touch.setRotation(1);
 }
 
 bool readCydTouch(uint16_t *x, uint16_t *y) {
-  const uint16_t pressure = tft.getTouchRawZ();
-  if (pressure < 80) return false;
-
-  uint16_t rawX = 0;
-  uint16_t rawY = 0;
-  tft.getTouchRaw(&rawX, &rawY);
-
-  int32_t mappedX = map(rawY, 300, 3700, 0, tft.width() - 1);
-  int32_t mappedY = map(rawX, 300, 3700, 0, tft.height() - 1);
-  *x = constrain(mappedX, 0, tft.width() - 1);
-  *y = constrain(mappedY, 0, tft.height() - 1);
+  if (!touch.touched()) return false;
+  TS_Point p = touch.getPoint();
+  *x = constrain(map(p.x, 200, 3900, 0, tft.width() - 1), 0, tft.width() - 1);
+  *y = constrain(map(p.y, 200, 3900, 0, tft.height() - 1), 0, tft.height() - 1);
   return true;
 }
 #endif
@@ -832,8 +832,6 @@ void handleTouch() {
   if (touched && !lastTouch) {
     touchPressedAtMs = millis();
     touchLongHandled = false;
-    touchStartX = x;
-    touchStartY = y;
     touchRightSide = x >= (tft.width() / 2);
   }
 

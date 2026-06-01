@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.5] - 2026-06-01
+
+- Remove conflicting CYD TFT width and height overrides so the ILI9341 driver can use its native geometry.
+- Switch CYD touch input to the dedicated XPT2046 controller on the ESP32-2432S028 touch SPI pins.
+- Use the CYD-compatible ILI9341 variant and HSPI TFT bus setup.
+
 ## [0.1.4] - 2026-06-01
 
 - Configure the CYD target as native 320x240 landscape instead of rotating a portrait coordinate system.
