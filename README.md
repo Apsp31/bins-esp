@@ -18,16 +18,23 @@ The data endpoint used is:
 
 `https://gis.stalbans.gov.uk/NoticeBoard9/VeoliaProxy.NoticeBoard.asmx/GetServicesByUprnAndNoticeBoard`
 
-## Hardware target
+## Hardware targets
 
-The default PlatformIO environment targets the common TTGO/LilyGO T-Display ESP32 1.14 inch ST7789 board:
+The default PlatformIO environment on this branch targets the common ESP32 Cheap Yellow Display / ESP32-2432S028R style board:
+
+- ESP32-WROOM
+- ILI9341 2.8 inch 320 x 240 TFT
+- XPT2046 resistive touchscreen
+- 4MB flash
+
+The original `ttgo-t-display` environment is still available for the TTGO/LilyGO T-Display ESP32 1.14 inch ST7789 board:
 
 - ESP32
 - CH9102F USB serial
 - 16MB flash
 - ST7789 135 x 240 display
 
-If your board turns out to be an ESP32-S3 T-Display, the display pin mapping and board target will need changing.
+If your CYD variant uses different display or touch pins, update the `cheap-yellow-display` build flags in `platformio.ini`.
 
 ## First boot setup
 
@@ -45,9 +52,12 @@ If the access point does not appear, the ESP may already have saved Wi-Fi creden
 
 ## Buttons
 
-- Left button: cycle through the five display pages.
-- Right button: refresh collection data now.
-- Hold right button: toggle alert preview mode.
+- T-Display left button: cycle through the five display pages.
+- T-Display right button: refresh collection data now.
+- T-Display hold right button: toggle alert preview mode.
+- CYD left-half touch: cycle through the five display pages.
+- CYD right-half touch: refresh collection data now.
+- CYD hold right-half touch: toggle alert preview mode.
 
 ## Versioning
 

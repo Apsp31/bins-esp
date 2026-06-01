@@ -18,8 +18,13 @@ constexpr const char *kEndpoint =
 constexpr const char *kQuickSearchEndpoint = "https://gis.stalbans.gov.uk/NoticeBoard9/quicksearch.asmx";
 constexpr uint32_t kFetchIntervalMs = 6UL * 60UL * 60UL * 1000UL;
 constexpr uint8_t kDisplayModeCount = 5;
+#if defined(CHEAP_YELLOW_DISPLAY)
+constexpr int kButtonLeft = 0;
+constexpr int kButtonRight = -1;
+#else
 constexpr int kButtonLeft = 0;
 constexpr int kButtonRight = 35;
+#endif
 
 TFT_eSPI tft;
 Preferences prefs;
@@ -60,6 +65,12 @@ bool lastRight = true;
 bool previewAlert = false;
 bool rightLongHandled = false;
 uint32_t rightPressedAtMs = 0;
+#if defined(CYD_TOUCH_ENABLED)
+bool lastTouch = false;
+bool touchLongHandled = false;
+bool touchRightSide = false;
+uint32_t touchPressedAtMs = 0;
+#endif
 
 String xmlEscape(const String &value) {
   String out;
@@ -145,6 +156,19 @@ void drawText(int x, int y, const String &text, uint16_t color, uint8_t font = 2
 void drawCentered(int y, const String &text, uint16_t color, uint8_t font = 4) {
   tft.setTextColor(color, TFT_BLACK);
   tft.drawCentreString(text, tft.width() / 2, y, font);
+}
+
+bool largeScreen() {
+  return tft.height() >= 200;
+}
+
+int bottomY(int offset = 16) {
+  return max(0, tft.height() - offset);
+}
+
+bool readButton(int pin) {
+  if (pin < 0) return true;
+  return digitalRead(pin);
 }
 
 String localTimeText(const char *fmt) {
@@ -275,10 +299,10 @@ bool lookupUprnForPostcode(const String &postcode, String &uprnOut) {
 
 void showSetupScreen() {
   tft.fillScreen(TFT_BLACK);
-  drawCentered(18, "Bins Display", TFT_CYAN, 4);
-  drawCentered(64, "Setup Wi-Fi", TFT_WHITE, 4);
-  drawCentered(106, kPortalSsid, TFT_YELLOW, 2);
-  drawCentered(136, "Open 192.168.4.1", TFT_LIGHTGREY, 2);
+  drawCentered(largeScreen() ? 36 : 18, "Bins Display", TFT_CYAN, 4);
+  drawCentered(largeScreen() ? 92 : 64, "Setup Wi-Fi", TFT_WHITE, 4);
+  drawCentered(largeScreen() ? 146 : 106, kPortalSsid, TFT_YELLOW, 2);
+  drawCentered(largeScreen() ? 178 : 136, "Open 192.168.4.1", TFT_LIGHTGREY, 2);
 }
 
 void resetStoredSetup(WiFiManager &wm) {
@@ -500,12 +524,14 @@ String footerText(bool detailed) {
 }
 
 void drawFooter(bool detailed) {
-  drawText(6, 119, footerText(detailed).substring(0, 34), TFT_LIGHTGREY, 2);
+  drawText(6, bottomY(16), footerText(detailed).substring(0, 42), TFT_LIGHTGREY, 2);
 }
 
 void drawModeDot() {
+  const int firstX = tft.width() - 44;
+  const int y = bottomY(11);
   for (int i = 0; i < kDisplayModeCount; i++) {
-    tft.fillCircle(196 + (i * 9), 124, 2, i == config.displayMode ? TFT_CYAN : TFT_DARKGREY);
+    tft.fillCircle(firstX + (i * 9), y, 2, i == config.displayMode ? TFT_CYAN : TFT_DARKGREY);
   }
 }
 
@@ -544,6 +570,13 @@ String alertLabel() {
 
 void drawFocusAlert(const ServiceDate &svc) {
   tft.fillScreen(TFT_BLACK);
+  if (largeScreen()) {
+    drawCentered(24, "TONIGHT", TFT_RED, 4);
+    drawCentered(72, putOutLabel(svc), TFT_WHITE, 4);
+    drawCentered(128, "Put out by 6am", TFT_YELLOW, 4);
+    drawCentered(184, localTimeText("%H:%M"), TFT_CYAN, 6);
+    return;
+  }
   drawCentered(2, "TONIGHT", TFT_RED, 4);
   drawCentered(32, putOutLabel(svc), TFT_WHITE, 4);
   drawCentered(74, "Put out by 6am", TFT_YELLOW, 4);
@@ -555,28 +588,44 @@ void drawFocusLayout(bool detailed) {
   ServiceDate second;
   orderedMainCollections(first, second);
   tft.fillScreen(TFT_BLACK);
+  const int lineY = largeScreen() ? 82 : 55;
+  const int rowY = largeScreen() ? 96 : 62;
+  const int dateY = largeScreen() ? 136 : 95;
   tft.setTextColor(TFT_CYAN, TFT_BLACK);
-  tft.drawString(localTimeText("%H:%M"), 6, 0, 6);
+  tft.drawString(localTimeText("%H:%M"), 6, largeScreen() ? 8 : 0, 6);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.drawRightString(localTimeText("%a %d %b"), tft.width() - 6, 8, 2);
+  tft.drawRightString(localTimeText("%a %d %b"), tft.width() - 8, largeScreen() ? 18 : 8, 2);
 
-  tft.drawFastHLine(6, 55, tft.width() - 12, accentFor(first));
-  drawText(8, 62, first.label, accentFor(first), 4);
+  tft.drawFastHLine(6, lineY, tft.width() - 12, accentFor(first));
+  drawText(8, rowY, first.label, accentFor(first), 4);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.drawRightString(friendlyDay(first), tft.width() - 8, 62, 4);
+  tft.drawRightString(friendlyDay(first), tft.width() - 8, rowY, 4);
   tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-  tft.drawRightString(conciseDate(first), tft.width() - 8, 95, 2);
-  drawText(8, 95, "Next collection", TFT_LIGHTGREY, 2);
+  tft.drawRightString(conciseDate(first), tft.width() - 8, dateY, 2);
+  drawText(8, dateY, "Next collection", TFT_LIGHTGREY, 2);
 
   if (second.valid) {
     tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-    tft.drawString(second.label + " " + conciseDate(second), 8, 116, 2);
+    tft.drawString(second.label + " " + conciseDate(second), 8, largeScreen() ? 154 : 116, 2);
+  }
+  if (largeScreen()) {
+    drawFooter(detailed);
   }
   if (detailed) drawModeDot();
 }
 
 void drawStackAlert(const ServiceDate &svc) {
   tft.fillScreen(TFT_BLACK);
+  if (largeScreen()) {
+    drawText(10, 12, "Put out", TFT_RED, 4);
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.drawRightString(localTimeText("%H:%M"), tft.width() - 10, 17, 4);
+    tft.drawFastHLine(12, 60, tft.width() - 24, TFT_RED);
+    drawCentered(88, putOutLabel(svc), TFT_WHITE, 4);
+    drawCentered(142, "Tonight", TFT_YELLOW, 4);
+    drawModeDot();
+    return;
+  }
   drawText(6, 2, "Put out", TFT_RED, 4);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.drawRightString(localTimeText("%H:%M"), tft.width() - 8, 7, 4);
@@ -591,100 +640,106 @@ void drawStackLayout(bool detailed) {
   ServiceDate second;
   orderedMainCollections(first, second);
   tft.fillScreen(TFT_BLACK);
-  drawText(6, 2, localTimeText("%a %d"), TFT_CYAN, 4);
+  const int firstY = largeScreen() ? 72 : 37;
+  const int dividerY = largeScreen() ? 125 : 75;
+  const int secondY = largeScreen() ? 145 : 82;
+  drawText(6, largeScreen() ? 12 : 2, localTimeText("%a %d"), TFT_CYAN, 4);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.drawRightString(localTimeText("%H:%M"), tft.width() - 8, 7, 4);
+  tft.drawRightString(localTimeText("%H:%M"), tft.width() - 8, largeScreen() ? 17 : 7, 4);
 
-  drawText(8, 43, "1", TFT_LIGHTGREY, 2);
-  drawText(28, 37, first.label, accentFor(first), 4);
+  drawText(8, firstY + 6, "1", TFT_LIGHTGREY, 2);
+  drawText(28, firstY, first.label, accentFor(first), 4);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.drawRightString(shortDate(first), tft.width() - 8, 39, 2);
+  tft.drawRightString(shortDate(first), tft.width() - 8, firstY + 2, 2);
   tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-  tft.drawRightString(countdownText(first), tft.width() - 8, 56, 2);
+  tft.drawRightString(countdownText(first), tft.width() - 8, firstY + 19, 2);
 
-  tft.drawFastHLine(8, 75, tft.width() - 16, TFT_DARKGREY);
-  drawText(8, 88, "2", TFT_LIGHTGREY, 2);
-  drawText(28, 82, second.label, accentFor(second), 4);
+  tft.drawFastHLine(8, dividerY, tft.width() - 16, TFT_DARKGREY);
+  drawText(8, secondY + 6, "2", TFT_LIGHTGREY, 2);
+  drawText(28, secondY, second.label, accentFor(second), 4);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.drawRightString(shortDate(second), tft.width() - 8, 84, 2);
+  tft.drawRightString(shortDate(second), tft.width() - 8, secondY + 2, 2);
   tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-  tft.drawRightString(countdownText(second), tft.width() - 8, 101, 2);
+  tft.drawRightString(countdownText(second), tft.width() - 8, secondY + 19, 2);
   if (detailed) drawModeDot();
 }
 
 void drawTimelineAlert(const ServiceDate &svc) {
   tft.fillScreen(TFT_RED);
   tft.setTextColor(TFT_WHITE, TFT_RED);
-  tft.drawCentreString("TONIGHT", tft.width() / 2, 6, 4);
-  tft.drawCentreString(putOutLabel(svc), tft.width() / 2, 44, 4);
+  tft.drawCentreString("TONIGHT", tft.width() / 2, largeScreen() ? 32 : 6, 4);
+  tft.drawCentreString(putOutLabel(svc), tft.width() / 2, largeScreen() ? 88 : 44, 4);
   tft.setTextColor(TFT_YELLOW, TFT_RED);
-  tft.drawCentreString("Before 6am", tft.width() / 2, 91, 4);
+  tft.drawCentreString("Before 6am", tft.width() / 2, largeScreen() ? 150 : 91, 4);
 }
 
 void drawClockLayout(bool detailed) {
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_CYAN, TFT_BLACK);
   const String timeText = localTimeText("%H:%M");
-  tft.drawCentreString(timeText == "--" ? "Syncing" : timeText, tft.width() / 2, 6, timeText == "--" ? 4 : 6);
+  tft.drawCentreString(timeText == "--" ? "Syncing" : timeText, tft.width() / 2, largeScreen() ? 28 : 6, timeText == "--" ? 4 : 6);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.drawCentreString(localTimeText("%A"), tft.width() / 2, 70, 4);
+  tft.drawCentreString(localTimeText("%A"), tft.width() / 2, largeScreen() ? 110 : 70, 4);
   tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-  tft.drawCentreString(localTimeText("%d %B"), tft.width() / 2, 101, 4);
+  tft.drawCentreString(localTimeText("%d %B"), tft.width() / 2, largeScreen() ? 152 : 101, 4);
   if (detailed) drawModeDot();
 }
 
 void drawBoldAlert(const ServiceDate &svc) {
   tft.fillScreen(TFT_BLACK);
-  tft.fillRect(0, 0, tft.width(), 28, TFT_RED);
+  const int headerHeight = largeScreen() ? 42 : 28;
+  tft.fillRect(0, 0, tft.width(), headerHeight, TFT_RED);
   tft.setTextColor(TFT_WHITE, TFT_RED);
-  tft.drawCentreString("BINS TONIGHT", tft.width() / 2, 4, 4);
-  drawCentered(42, putOutLabel(svc), accentFor(svc), 4);
-  drawCentered(76, "Put out", TFT_WHITE, 4);
-  drawCentered(105, "before 6am", TFT_YELLOW, 2);
+  tft.drawCentreString("BINS TONIGHT", tft.width() / 2, largeScreen() ? 10 : 4, 4);
+  drawCentered(largeScreen() ? 66 : 42, putOutLabel(svc), accentFor(svc), 4);
+  drawCentered(largeScreen() ? 118 : 76, "Put out", TFT_WHITE, 4);
+  drawCentered(largeScreen() ? 162 : 105, "before 6am", TFT_YELLOW, largeScreen() ? 4 : 2);
 }
 
 void drawBoldLayout(bool detailed) {
   ServiceDate first = nextMainCollection();
   ServiceDate second = first.label == "Refuse" ? bins.recycling : bins.refuse;
   tft.fillScreen(TFT_BLACK);
-  tft.fillRect(0, 0, 8, tft.height(), accentFor(first));
-  drawText(16, 4, first.label, accentFor(first), 4);
+  tft.fillRect(0, 0, largeScreen() ? 12 : 8, tft.height(), accentFor(first));
+  drawText(largeScreen() ? 22 : 16, largeScreen() ? 14 : 4, first.label, accentFor(first), 4);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.drawRightString(localTimeText("%H:%M"), tft.width() - 8, 6, 4);
-  drawCentered(43, shortDate(first), TFT_WHITE, 4);
-  drawCentered(78, countdownText(first), TFT_YELLOW, 4);
+  tft.drawRightString(localTimeText("%H:%M"), tft.width() - 8, largeScreen() ? 16 : 6, 4);
+  drawCentered(largeScreen() ? 78 : 43, shortDate(first), TFT_WHITE, 4);
+  drawCentered(largeScreen() ? 130 : 78, countdownText(first), TFT_YELLOW, 4);
   if (second.valid) {
     tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-    tft.drawCentreString("Then " + second.label + " " + conciseDate(second), tft.width() / 2, 112, 2);
+    tft.drawCentreString("Then " + second.label + " " + conciseDate(second), tft.width() / 2, largeScreen() ? 190 : 112, 2);
   }
   if (detailed) drawModeDot();
 }
 
 void drawStatusLayout() {
   tft.fillScreen(TFT_BLACK);
-  drawText(6, 0, "Bins v" + String(FIRMWARE_VERSION), TFT_CYAN, 4);
+  const int rowGap = largeScreen() ? 25 : 18;
+  const int startY = largeScreen() ? 58 : 35;
+  drawText(6, largeScreen() ? 12 : 0, "Bins v" + String(FIRMWARE_VERSION), TFT_CYAN, 4);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.drawRightString(localTimeText("%H:%M"), tft.width() - 8, 6, 4);
+  tft.drawRightString(localTimeText("%H:%M"), tft.width() - 8, largeScreen() ? 18 : 6, 4);
 
-  drawText(8, 35, "Wi-Fi", TFT_LIGHTGREY, 2);
+  drawText(8, startY, "Wi-Fi", TFT_LIGHTGREY, 2);
   tft.setTextColor(WiFi.status() == WL_CONNECTED ? TFT_GREEN : TFT_RED, TFT_BLACK);
-  tft.drawString(wifiSummary().substring(0, 24), 66, 35, 2);
+  tft.drawString(wifiSummary().substring(0, largeScreen() ? 34 : 24), 82, startY, 2);
 
-  drawText(8, 53, "IP", TFT_LIGHTGREY, 2);
-  drawText(66, 53, WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString() : "--", TFT_WHITE, 2);
+  drawText(8, startY + rowGap, "IP", TFT_LIGHTGREY, 2);
+  drawText(82, startY + rowGap, WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString() : "--", TFT_WHITE, 2);
 
-  drawText(8, 71, "Postcode", TFT_LIGHTGREY, 2);
-  drawText(66, 71, compactPostcode(config.postcode), TFT_WHITE, 2);
+  drawText(8, startY + (rowGap * 2), "Postcode", TFT_LIGHTGREY, 2);
+  drawText(82, startY + (rowGap * 2), compactPostcode(config.postcode), TFT_WHITE, 2);
 
-  drawText(8, 89, "UPRN", TFT_LIGHTGREY, 2);
-  drawText(66, 89, config.uprn.substring(0, 18), TFT_WHITE, 2);
+  drawText(8, startY + (rowGap * 3), "UPRN", TFT_LIGHTGREY, 2);
+  drawText(82, startY + (rowGap * 3), config.uprn.substring(0, largeScreen() ? 24 : 18), TFT_WHITE, 2);
 
-  drawText(8, 107, "Fetch", TFT_LIGHTGREY, 2);
-  drawText(66, 107, compactTimeText(bins.lastFetch), bins.lastError.length() ? TFT_YELLOW : TFT_WHITE, 2);
+  drawText(8, startY + (rowGap * 4), "Fetch", TFT_LIGHTGREY, 2);
+  drawText(82, startY + (rowGap * 4), compactTimeText(bins.lastFetch), bins.lastError.length() ? TFT_YELLOW : TFT_WHITE, 2);
 
   const String health = bins.lastError.length() ? bins.lastError : "OK";
   tft.setTextColor(bins.lastError.length() ? TFT_YELLOW : TFT_GREEN, TFT_BLACK);
-  tft.drawString(("Up " + uptimeText() + " " + health).substring(0, 24), 8, 120, 2);
+  tft.drawString(("Up " + uptimeText() + " " + health).substring(0, largeScreen() ? 36 : 24), 8, bottomY(18), 2);
   drawModeDot();
 }
 
@@ -713,13 +768,54 @@ void drawScreen() {
   drawNormalLayout(config.showStatusWhenIdle);
 }
 
-void handleButtons() {
-  bool left = digitalRead(kButtonLeft);
-  bool right = digitalRead(kButtonRight);
-  if (!left && lastLeft) {
-    config.displayMode = (config.displayMode + 1) % kDisplayModeCount;
-    saveConfig();
+void cycleDisplayMode() {
+  config.displayMode = (config.displayMode + 1) % kDisplayModeCount;
+  saveConfig();
+  drawScreen();
+}
+
+void refreshCollections() {
+  lastFetchAttemptMs = 0;
+  drawCentered(bottomY(19), "Refreshing...", TFT_YELLOW, 2);
+  fetchBins();
+  drawScreen();
+}
+
+#if defined(CYD_TOUCH_ENABLED)
+void handleTouch() {
+  uint16_t x = 0;
+  uint16_t y = 0;
+  const bool touched = tft.getTouch(&x, &y);
+
+  if (touched && !lastTouch) {
+    touchPressedAtMs = millis();
+    touchLongHandled = false;
+    touchRightSide = x >= (tft.width() / 2);
+  }
+
+  if (touched && touchRightSide && !touchLongHandled && millis() - touchPressedAtMs > 900UL) {
+    previewAlert = !previewAlert;
+    touchLongHandled = true;
     drawScreen();
+  }
+
+  if (!touched && lastTouch && !touchLongHandled) {
+    if (touchRightSide) {
+      refreshCollections();
+    } else {
+      cycleDisplayMode();
+    }
+  }
+
+  lastTouch = touched;
+}
+#endif
+
+void handleButtons() {
+  bool left = readButton(kButtonLeft);
+  bool right = readButton(kButtonRight);
+  if (!left && lastLeft) {
+    cycleDisplayMode();
   }
 
   if (!right && lastRight) {
@@ -734,19 +830,20 @@ void handleButtons() {
   }
 
   if (right && !lastRight && !rightLongHandled) {
-    lastFetchAttemptMs = 0;
-    drawCentered(116, "Refreshing...", TFT_YELLOW, 2);
-    fetchBins();
-    drawScreen();
+    refreshCollections();
   }
   lastLeft = left;
   lastRight = right;
+
+#if defined(CYD_TOUCH_ENABLED)
+  handleTouch();
+#endif
 }
 
 void setup() {
   Serial.begin(115200);
-  pinMode(kButtonLeft, INPUT_PULLUP);
-  pinMode(kButtonRight, INPUT_PULLUP);
+  if (kButtonLeft >= 0) pinMode(kButtonLeft, INPUT_PULLUP);
+  if (kButtonRight >= 0) pinMode(kButtonRight, INPUT_PULLUP);
 
   tft.init();
   tft.setRotation(1);
@@ -754,9 +851,9 @@ void setup() {
   tft.setTextDatum(TL_DATUM);
 
   loadConfig();
-  const bool forcePortal = digitalRead(kButtonLeft) == LOW;
+  const bool forcePortal = !readButton(kButtonLeft);
   if (forcePortal) {
-    drawCentered(190, "Resetting setup", TFT_YELLOW, 2);
+    drawCentered(bottomY(24), "Resetting setup", TFT_YELLOW, 2);
     delay(1200);
   }
   connectWifi(forcePortal);

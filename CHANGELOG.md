@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.2] - 2026-06-01
+
+- Add a Cheap Yellow Display PlatformIO environment for the ESP32 2.8 inch 320x240 ILI9341 touchscreen board.
+- Add CYD touch controls: left-half tap cycles pages, right-half tap refreshes, and right-half long press toggles alert preview.
+- Scale display layouts for 320x240 screens while preserving the original T-Display layout.
+
 ## [0.1.1] - 2026-05-23
 
 - Add automatic firmware patch version bumping during PlatformIO builds.
