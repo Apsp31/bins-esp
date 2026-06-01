@@ -77,6 +77,8 @@ bool lastTouch = false;
 bool touchLongHandled = false;
 bool touchRightSide = false;
 uint32_t touchPressedAtMs = 0;
+uint16_t touchStartX = 0;
+uint16_t touchStartY = 0;
 #endif
 
 String xmlEscape(const String &value) {
@@ -178,10 +180,36 @@ bool readButton(int pin) {
   return digitalRead(pin);
 }
 
+void disableUnusedSpiDevices() {
+#if defined(CYD_SD_CS)
+  pinMode(CYD_SD_CS, OUTPUT);
+  digitalWrite(CYD_SD_CS, HIGH);
+#endif
+#if defined(TOUCH_CS)
+  pinMode(TOUCH_CS, OUTPUT);
+  digitalWrite(TOUCH_CS, HIGH);
+#endif
+}
+
 #if defined(CYD_TOUCH_ENABLED)
 void configureTouch() {
   uint16_t calData[5] = {275, 3620, 264, 3532, 7};
   tft.setTouch(calData);
+}
+
+bool readCydTouch(uint16_t *x, uint16_t *y) {
+  const uint16_t pressure = tft.getTouchRawZ();
+  if (pressure < 80) return false;
+
+  uint16_t rawX = 0;
+  uint16_t rawY = 0;
+  tft.getTouchRaw(&rawX, &rawY);
+
+  int32_t mappedX = map(rawY, 300, 3700, 0, tft.width() - 1);
+  int32_t mappedY = map(rawX, 300, 3700, 0, tft.height() - 1);
+  *x = constrain(mappedX, 0, tft.width() - 1);
+  *y = constrain(mappedY, 0, tft.height() - 1);
+  return true;
 }
 #endif
 
@@ -799,11 +827,13 @@ void refreshCollections() {
 void handleTouch() {
   uint16_t x = 0;
   uint16_t y = 0;
-  const bool touched = tft.getTouch(&x, &y);
+  const bool touched = readCydTouch(&x, &y);
 
   if (touched && !lastTouch) {
     touchPressedAtMs = millis();
     touchLongHandled = false;
+    touchStartX = x;
+    touchStartY = y;
     touchRightSide = x >= (tft.width() / 2);
   }
 
@@ -874,6 +904,7 @@ void setup() {
   Serial.begin(115200);
   if (kButtonLeft >= 0) pinMode(kButtonLeft, INPUT_PULLUP);
   if (kButtonRight >= 0) pinMode(kButtonRight, INPUT_PULLUP);
+  disableUnusedSpiDevices();
 
   tft.init();
   tft.setRotation(TFT_ROTATION);

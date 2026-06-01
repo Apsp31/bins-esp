@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.4] - 2026-06-01
+
+- Configure the CYD target as native 320x240 landscape instead of rotating a portrait coordinate system.
+- Further reduce CYD TFT SPI speed and force unused shared SPI chip-select pins inactive to reduce white-dot artefacts.
+- Read CYD touch using raw XPT2046 pressure and coordinates instead of relying on calibrated touch conversion.
+
 ## [0.1.3] - 2026-06-01
 
 - Rotate the Cheap Yellow Display target to landscape orientation.
