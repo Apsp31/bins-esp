@@ -55,11 +55,13 @@ If the access point does not appear, the ESP may already have saved Wi-Fi creden
 - T-Display left button: cycle through the five display pages.
 - T-Display right button: refresh collection data now.
 - T-Display hold right button: toggle alert preview mode.
-- CYD left-half touch: cycle through the seven display pages.
+- CYD left-half touch: cycle through the eight display pages.
 - CYD right-half touch: refresh collection data now.
 - CYD hold right-half touch: toggle alert preview mode.
-- CYD user button short press: cycle through the seven display pages.
+- CYD user button short press: cycle through the eight display pages.
 - CYD user button long press: refresh collection data now.
+
+The eighth CYD page is a colour calibration page. Tap the swatch that visually matches the prompted colour; the selected RGB565 values are stored and shown at the bottom of the page.
 
 ## Versioning
 

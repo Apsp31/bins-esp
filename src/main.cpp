@@ -22,7 +22,7 @@ constexpr const char *kEndpoint =
 constexpr const char *kQuickSearchEndpoint = "https://gis.stalbans.gov.uk/NoticeBoard9/quicksearch.asmx";
 constexpr uint32_t kFetchIntervalMs = 6UL * 60UL * 60UL * 1000UL;
 constexpr uint8_t kBaseDisplayModeCount = 5;
-constexpr uint8_t kLargeDisplayModeCount = 7;
+constexpr uint8_t kLargeDisplayModeCount = 8;
 #ifndef TFT_ROTATION
 #define TFT_ROTATION 1
 #endif
@@ -56,6 +56,10 @@ struct AppConfig {
   String uprn = kDefaultUprn;
   bool showStatusWhenIdle = true;
   uint8_t displayMode = 0;
+  uint16_t colorRed = TFT_RED;
+  uint16_t colorGreen = TFT_GREEN;
+  uint16_t colorBlue = TFT_BLUE;
+  uint16_t colorYellow = TFT_YELLOW;
 };
 
 struct BinState {
@@ -86,6 +90,9 @@ bool lastTouch = false;
 bool touchLongHandled = false;
 bool touchRightSide = false;
 uint32_t touchPressedAtMs = 0;
+uint8_t colorCalStep = 0;
+uint16_t touchLastX = 0;
+uint16_t touchLastY = 0;
 #endif
 
 String xmlEscape(const String &value) {
@@ -271,6 +278,10 @@ void loadConfig() {
   config.uprn = prefs.getString("uprn", kDefaultUprn);
   config.showStatusWhenIdle = prefs.getBool("idleStatus", true);
   config.displayMode = prefs.getUChar("displayMode", 0) % displayModeCount();
+  config.colorRed = prefs.getUShort("colorRed", TFT_RED);
+  config.colorGreen = prefs.getUShort("colorGreen", TFT_GREEN);
+  config.colorBlue = prefs.getUShort("colorBlue", TFT_BLUE);
+  config.colorYellow = prefs.getUShort("colorYellow", TFT_YELLOW);
 
   bins.refuse.date = prefs.getString("refuseDate", "");
   bins.recycling.date = prefs.getString("recycleDate", "");
@@ -297,6 +308,10 @@ void saveConfig() {
   prefs.putString("uprn", config.uprn);
   prefs.putBool("idleStatus", config.showStatusWhenIdle);
   prefs.putUChar("displayMode", config.displayMode % displayModeCount());
+  prefs.putUShort("colorRed", config.colorRed);
+  prefs.putUShort("colorGreen", config.colorGreen);
+  prefs.putUShort("colorBlue", config.colorBlue);
+  prefs.putUShort("colorYellow", config.colorYellow);
 }
 
 void saveBinCache() {
@@ -604,17 +619,47 @@ String wifiSummary() {
   return WiFi.SSID() + " " + String(WiFi.RSSI()) + "dBm";
 }
 
-uint16_t swapRgb565Bytes(uint16_t color) {
+constexpr uint16_t swapRgb565Bytes(uint16_t color) {
   return (color >> 8) | (color << 8);
 }
 
 uint16_t analogAlertBackgroundColor() {
-#if defined(CHEAP_YELLOW_DISPLAY)
-  return swapRgb565Bytes(TFT_RED);
-#else
-  return TFT_RED;
-#endif
+  return config.colorRed;
 }
+
+#if defined(CYD_TOUCH_ENABLED)
+constexpr uint16_t kColorCandidates[] = {
+    TFT_RED, TFT_GREEN, TFT_BLUE, TFT_YELLOW,
+    TFT_CYAN, TFT_MAGENTA, TFT_ORANGE, TFT_WHITE,
+    0x0000, 0xF800, 0x07E0, 0x001F,
+    swapRgb565Bytes(0xF800), swapRgb565Bytes(0x07E0),
+    swapRgb565Bytes(0x001F), swapRgb565Bytes(0xFFE0)
+};
+
+String hexColor(uint16_t color) {
+  char buf[7];
+  snprintf(buf, sizeof(buf), "%04X", color);
+  return String(buf);
+}
+
+String colorStepName() {
+  if (colorCalStep == 0) return "RED";
+  if (colorCalStep == 1) return "GREEN";
+  if (colorCalStep == 2) return "BLUE";
+  if (colorCalStep == 3) return "YELLOW";
+  return "DONE";
+}
+
+void storeSelectedColor(uint16_t color) {
+  if (colorCalStep == 0) config.colorRed = color;
+  if (colorCalStep == 1) config.colorGreen = color;
+  if (colorCalStep == 2) config.colorBlue = color;
+  if (colorCalStep == 3) config.colorYellow = color;
+  Serial.printf("Colour %s = 0x%04X\n", colorStepName().c_str(), color);
+  if (colorCalStep < 4) colorCalStep++;
+  saveConfig();
+}
+#endif
 
 String alertLabel() {
   String label;
@@ -909,6 +954,45 @@ void drawLargeAnalogClockLayout(bool detailed) {
   drawModeDot();
 }
 
+#if defined(CYD_TOUCH_ENABLED)
+void drawColorCalibrationLayout() {
+  tft.fillScreen(TFT_BLACK);
+  drawText(8, 4, "Colour test", TFT_WHITE, 4);
+  drawText(8, 36, "Tap the swatch that looks " + colorStepName(), config.colorYellow, 2);
+
+  for (int i = 0; i < 16; i++) {
+    const int col = i % 4;
+    const int row = i / 4;
+    const int x = 8 + (col * 78);
+    const int y = 62 + (row * 34);
+    tft.fillRect(x, y, 68, 24, kColorCandidates[i]);
+    tft.drawRect(x, y, 68, 24, TFT_WHITE);
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.drawString(String(i + 1), x + 3, y + 4, 2);
+  }
+
+  drawText(8, 206, "R " + hexColor(config.colorRed) + " G " + hexColor(config.colorGreen), TFT_WHITE, 2);
+  drawText(160, 206, "B " + hexColor(config.colorBlue) + " Y " + hexColor(config.colorYellow), TFT_WHITE, 2);
+  drawModeDot();
+}
+
+bool handleColorCalibrationTouch(uint16_t x, uint16_t y) {
+  if (config.displayMode != 7 || !largeScreen()) return false;
+  for (int i = 0; i < 16; i++) {
+    const int col = i % 4;
+    const int row = i / 4;
+    const int sx = 8 + (col * 78);
+    const int sy = 62 + (row * 34);
+    if (x >= sx && x <= sx + 68 && y >= sy && y <= sy + 24) {
+      storeSelectedColor(kColorCandidates[i]);
+      drawColorCalibrationLayout();
+      return true;
+    }
+  }
+  return false;
+}
+#endif
+
 void drawNormalLayout(bool detailed) {
   if (config.displayMode == 0) drawFocusLayout(detailed);
   if (config.displayMode == 1) drawStackLayout(detailed);
@@ -917,6 +1001,9 @@ void drawNormalLayout(bool detailed) {
   if (config.displayMode == 4) drawStatusLayout();
   if (largeScreen() && config.displayMode == 5) drawLargeDashboardLayout(detailed);
   if (largeScreen() && config.displayMode == 6) drawLargeAnalogClockLayout(detailed);
+#if defined(CYD_TOUCH_ENABLED)
+  if (largeScreen() && config.displayMode == 7) drawColorCalibrationLayout();
+#endif
 }
 
 void drawAlertLayout(const ServiceDate &svc) {
@@ -927,6 +1014,7 @@ void drawAlertLayout(const ServiceDate &svc) {
   if (config.displayMode == 4) drawFocusAlert(svc);
   if (largeScreen() && config.displayMode == 5) drawWideAlert(svc);
   if (largeScreen() && config.displayMode == 6) drawAnalogClockAlert(svc);
+  if (largeScreen() && config.displayMode == 7) drawWideAlert(svc);
 }
 
 void drawScreen() {
@@ -962,6 +1050,10 @@ void handleTouch() {
     touchLongHandled = false;
     touchRightSide = x >= (tft.width() / 2);
   }
+  if (touched) {
+    touchLastX = x;
+    touchLastY = y;
+  }
 
   if (touched && touchRightSide && !touchLongHandled && millis() - touchPressedAtMs > 900UL) {
     previewAlert = !previewAlert;
@@ -970,7 +1062,9 @@ void handleTouch() {
   }
 
   if (!touched && lastTouch && !touchLongHandled) {
-    if (touchRightSide) {
+    if (handleColorCalibrationTouch(touchLastX, touchLastY)) {
+      // Selection handled by the colour calibration page.
+    } else if (touchRightSide) {
       refreshCollections();
     } else {
       cycleDisplayMode();

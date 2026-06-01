@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.10] - 2026-06-01
+
+- Add a CYD-only colour swatch calibration page using touch selection for red, green, blue, and yellow.
+- Persist selected RGB565 colour values and show them on the calibration page for read-back.
+- Use the calibrated red value for the analog alert warning background.
+
 ## [0.1.9] - 2026-06-01
 
 - Replace the CYD analog alert colour-name workaround with an explicit byte-swapped red background value.
