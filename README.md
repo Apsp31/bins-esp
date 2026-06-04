@@ -56,6 +56,7 @@ If the access point does not appear, the ESP may already have saved Wi-Fi creden
 - T-Display right button: refresh collection data now.
 - T-Display hold right button: toggle alert preview mode.
 - CYD left-half touch: cycle through the eight display pages.
+- CYD hold left-half touch: toggle between landscape and portrait layout sets.
 - CYD right-half touch: refresh collection data now.
 - CYD hold right-half touch: toggle alert preview mode.
 - CYD user button short press: cycle through the eight display pages.

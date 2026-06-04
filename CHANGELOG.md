@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.13] - 2026-06-04
+
+- Add a saved CYD portrait/landscape layout toggle using left-side touch long press.
+- Add five CYD portrait layouts: clean clock/date, next-bin focus, stacked cards, analog clock, and agenda/status.
+- Add a portrait-specific `PUT BINS OUT` alert screen for all portrait pages.
+- Rename user-facing refuse labels to `General Waste`.
+
 ## [0.1.12] - 2026-06-01
 
 - Bake in the CYD colour calibration values selected on-device: red `07FF`, green `E0FF`, blue `FFE0`, yellow `001F`.
