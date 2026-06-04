@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.15] - 2026-06-04
+
+- Replace CYD portrait page 2 with a clearer ranked `Next` and `Then` collection view.
+
 ## [0.1.14] - 2026-06-04
 
 - Rework CYD portrait pages for cleaner spacing, shorter labels, and safer bottom margins.
