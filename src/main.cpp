@@ -1060,34 +1060,37 @@ void drawPortraitCleanLayout(bool detailed) {
   ServiceDate first = nextMainCollection();
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(uiBlue(), TFT_BLACK);
-  tft.drawCentreString(localTimeText("%H:%M"), tft.width() / 2, 28, 6);
+  tft.drawCentreString(localTimeText("%H:%M"), tft.width() / 2, 24, 6);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.drawCentreString(localTimeText("%A"), tft.width() / 2, 104, 4);
+  tft.drawCentreString(localTimeText("%A"), tft.width() / 2, 102, 4);
   tft.setTextColor(uiYellow(), TFT_BLACK);
-  tft.drawCentreString(localTimeText("%d %B"), tft.width() / 2, 140, 4);
-  tft.drawFastHLine(34, 214, tft.width() - 68, TFT_DARKGREY);
-  drawText(34, 232, "Next", TFT_LIGHTGREY, 2);
-  tft.setTextColor(accentFor(first), TFT_BLACK);
-  tft.drawRightString(first.label, tft.width() - 34, 226, 2);
+  tft.drawCentreString(localTimeText("%d %B"), tft.width() / 2, 136, 4);
+  tft.drawFastHLine(36, 206, tft.width() - 72, TFT_DARKGREY);
+  drawText(34, 226, "Next bin", TFT_LIGHTGREY, 2);
+  tft.fillRoundRect(tft.width() - 126, 222, 92, 24, 4, accentFor(first));
+  tft.setTextColor(TFT_BLACK, accentFor(first));
+  tft.drawCentreString(first.label, tft.width() - 80, 226, 2);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.drawRightString(friendlyDay(first), tft.width() - 34, 248, 4);
+  tft.drawRightString(friendlyDay(first), tft.width() - 34, 256, 4);
   if (detailed) drawModeDot();
 }
 
 void drawPortraitFocusLayout(bool detailed) {
   ServiceDate first = nextMainCollection();
   tft.fillScreen(TFT_BLACK);
-  tft.fillRect(0, 0, tft.width(), 14, accentFor(first));
-  drawText(14, 34, "Next collection", TFT_LIGHTGREY, 2);
+  tft.fillRect(0, 0, tft.width(), 46, accentFor(first));
+  tft.setTextColor(TFT_BLACK, accentFor(first));
+  tft.drawCentreString("NEXT BIN DAY", tft.width() / 2, 12, 4);
+  drawText(18, 66, "Put out", TFT_LIGHTGREY, 2);
   tft.setTextColor(accentFor(first), TFT_BLACK);
-  tft.drawCentreString(first.label, tft.width() / 2, 70, 4);
+  tft.drawCentreString(first.label, tft.width() / 2, 92, 4);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.drawCentreString(friendlyDay(first), tft.width() / 2, 126, 6);
+  tft.drawCentreString(friendlyDay(first), tft.width() / 2, 140, 6);
   tft.setTextColor(uiYellow(), TFT_BLACK);
-  tft.drawCentreString(countdownText(first), tft.width() / 2, 204, 4);
-  drawText(14, 276, localTimeText("%H:%M"), uiBlue(), 4);
+  tft.drawCentreString(conciseDate(first), tft.width() / 2, 216, 4);
+  drawText(14, 270, countdownText(first), uiYellow(), 2);
   tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-  tft.drawRightString(localTimeText("%a %d %b"), tft.width() - 14, 282, 2);
+  tft.drawRightString(localTimeText("%H:%M"), tft.width() - 14, 264, 4);
   if (detailed) drawModeDot();
 }
 
@@ -1098,29 +1101,30 @@ void drawPortraitCardsLayout(bool detailed) {
   tft.drawRightString(localTimeText("%a %d"), tft.width() - 12, 16, 2);
 
   auto drawPortraitCard = [](int y, const ServiceDate &svc) {
-    tft.drawRect(12, y, 216, 88, TFT_DARKGREY);
-    tft.fillRect(12, y, 8, 88, accentFor(svc));
-    drawText(28, y + 12, svc.label, accentFor(svc), 4);
+    tft.drawRoundRect(12, y, 216, 82, 5, TFT_DARKGREY);
+    tft.fillRect(12, y, 8, 82, accentFor(svc));
+    drawText(30, y + 12, svc.label, accentFor(svc), 2);
     tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    tft.drawString(friendlyDay(svc), 28, y + 48, 4);
+    tft.drawString(friendlyDay(svc), 30, y + 38, 4);
     tft.setTextColor(uiYellow(), TFT_BLACK);
-    tft.drawRightString(countdownText(svc), 216, y + 56, 2);
+    tft.drawRightString(conciseDate(svc), 216, y + 58, 2);
   };
 
   drawPortraitCard(58, bins.refuse);
-  drawPortraitCard(164, bins.recycling);
+  drawPortraitCard(158, bins.recycling);
   if (detailed) drawModeDot();
 }
 
 void drawPortraitAnalogLayout(bool detailed) {
   ServiceDate first = nextMainCollection();
   tft.fillScreen(TFT_BLACK);
-  drawAnalogClockFace(tft.width() / 2, 112, 86, TFT_LIGHTGREY, TFT_WHITE);
+  drawAnalogClockFace(tft.width() / 2, 104, 82, TFT_LIGHTGREY, TFT_WHITE);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.drawCentreString(localTimeText("%A"), tft.width() / 2, 216, 4);
+  tft.drawCentreString(localTimeText("%A"), tft.width() / 2, 202, 4);
   tft.setTextColor(uiYellow(), TFT_BLACK);
-  tft.drawCentreString(localTimeText("%d %B"), tft.width() / 2, 250, 4);
-  drawText(16, 286, "Next " + first.label + " " + friendlyDay(first), accentFor(first), 2);
+  tft.drawCentreString(localTimeText("%d %B"), tft.width() / 2, 236, 4);
+  tft.setTextColor(accentFor(first), TFT_BLACK);
+  tft.drawCentreString(first.label + " " + friendlyDay(first), tft.width() / 2, 280, 2);
   if (detailed) drawModeDot();
 }
 
@@ -1129,20 +1133,27 @@ void drawPortraitAgendaLayout(bool detailed) {
   ServiceDate second;
   orderedMainCollections(first, second);
   tft.fillScreen(TFT_BLACK);
-  drawText(12, 10, "Bins", uiBlue(), 4);
+  drawText(12, 10, "Next two", uiBlue(), 4);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.drawRightString(localTimeText("%H:%M"), tft.width() - 12, 16, 4);
+  tft.drawRightString(localTimeText("%H:%M"), tft.width() - 12, 18, 2);
 
-  drawText(14, 72, "1", TFT_LIGHTGREY, 2);
-  drawText(42, 62, first.label, accentFor(first), 4);
-  drawText(42, 104, friendlyDay(first) + "  " + conciseDate(first), TFT_WHITE, 2);
-  drawText(42, 128, countdownText(first), uiYellow(), 4);
+  tft.fillCircle(26, 82, 11, accentFor(first));
+  tft.setTextColor(TFT_BLACK, accentFor(first));
+  tft.drawCentreString("1", 26, 75, 2);
+  drawText(48, 64, first.label, accentFor(first), 4);
+  drawText(48, 104, friendlyDay(first), TFT_WHITE, 4);
+  tft.setTextColor(uiYellow(), TFT_BLACK);
+  tft.drawRightString(conciseDate(first), tft.width() - 14, 112, 2);
 
-  tft.drawFastHLine(14, 184, tft.width() - 28, TFT_DARKGREY);
-  drawText(14, 204, "2", TFT_LIGHTGREY, 2);
-  drawText(42, 194, second.label, accentFor(second), 4);
-  drawText(42, 236, friendlyDay(second) + "  " + conciseDate(second), TFT_WHITE, 2);
-  drawFooter(detailed);
+  tft.drawFastHLine(18, 166, tft.width() - 36, TFT_DARKGREY);
+  tft.fillCircle(26, 206, 11, accentFor(second));
+  tft.setTextColor(TFT_BLACK, accentFor(second));
+  tft.drawCentreString("2", 26, 199, 2);
+  drawText(48, 188, second.label, accentFor(second), 4);
+  drawText(48, 228, friendlyDay(second), TFT_WHITE, 4);
+  tft.setTextColor(uiYellow(), TFT_BLACK);
+  tft.drawRightString(conciseDate(second), tft.width() - 14, 236, 2);
+  drawText(18, 282, WiFi.status() == WL_CONNECTED ? "Wi-Fi OK" : "Wi-Fi offline", TFT_LIGHTGREY, 2);
   if (detailed) drawModeDot();
 }
 

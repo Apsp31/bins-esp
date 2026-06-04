@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.14] - 2026-06-04
+
+- Rework CYD portrait pages for cleaner spacing, shorter labels, and safer bottom margins.
+- Replace the confusing portrait page 2 with a direct `Next bin day` layout showing bin type, day, date, countdown, and time.
+- Simplify portrait cards, analog clock, and next-two pages so `General Waste` and `Recycling` remain legible.
+
 ## [0.1.13] - 2026-06-04
 
 - Add a saved CYD portrait/landscape layout toggle using left-side touch long press.
