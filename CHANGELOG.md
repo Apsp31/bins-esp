@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.20] - 2026-07-10
+
+- Replace the low-contrast yellow date and attention text with white across CYD layouts.
+
 ## [0.1.18] - 2026-07-10
 
 - Add visible `Page n/count` badges with portrait/landscape markers so CYD layouts are easier to discuss.

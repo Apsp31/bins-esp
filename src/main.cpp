@@ -782,7 +782,9 @@ uint16_t uiRecycling() { return uiGreen(); }
 uint16_t uiAlert() { return uiRed(); }
 uint16_t uiDone() { return uiGreen(); }
 uint16_t uiClock() { return uiBlue(); }
-uint16_t uiDate() { return uiYellow(); }
+// White remains legible with the CYD's calibrated panel colours; the physical
+// yellow mapping is retained for compatibility but is too low-contrast for text.
+uint16_t uiDate() { return TFT_WHITE; }
 
 #if defined(CYD_TOUCH_ENABLED)
 constexpr uint16_t kColorCandidates[] = {
