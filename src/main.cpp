@@ -92,6 +92,12 @@ uint16_t uiRed();
 uint16_t uiGreen();
 uint16_t uiBlue();
 uint16_t uiYellow();
+uint16_t uiGeneralWaste();
+uint16_t uiRecycling();
+uint16_t uiAlert();
+uint16_t uiDone();
+uint16_t uiClock();
+uint16_t uiDate();
 bool isGeneralWaste(const ServiceDate &svc);
 
 uint32_t lastFetchAttemptMs = 0;
@@ -468,9 +474,9 @@ bool lookupUprnForPostcode(const String &postcode, String &uprnOut) {
 
 void showSetupScreen() {
   tft.fillScreen(TFT_BLACK);
-  drawCentered(largeScreen() ? 36 : 18, "Bins Display", config.colorBlue, 4);
+  drawCentered(largeScreen() ? 36 : 18, "Bins Display", uiClock(), 4);
   drawCentered(largeScreen() ? 92 : 64, "Setup Wi-Fi", TFT_WHITE, 4);
-  drawCentered(largeScreen() ? 146 : 106, kPortalSsid, config.colorYellow, 2);
+  drawCentered(largeScreen() ? 146 : 106, kPortalSsid, uiDate(), 2);
   drawCentered(largeScreen() ? 178 : 136, "Open 192.168.4.1", TFT_LIGHTGREY, 2);
 }
 
@@ -523,15 +529,15 @@ void connectWifi(bool forcePortal) {
 
   if (config.postcode.length() > 0 && (config.postcode != previousPostcode || config.uprn.length() == 0)) {
     tft.fillScreen(TFT_BLACK);
-    drawCentered(42, "Finding UPRN", config.colorBlue, 4);
+    drawCentered(42, "Finding UPRN", uiClock(), 4);
     drawCentered(82, config.postcode, TFT_WHITE, 4);
     String foundUprn;
     if (lookupUprnForPostcode(config.postcode, foundUprn)) {
       config.uprn = foundUprn;
-      drawCentered(116, "Found", config.colorGreen, 2);
+      drawCentered(116, "Found", uiDone(), 2);
       delay(900);
     } else {
-      drawCentered(116, "UPRN unchanged", config.colorYellow, 2);
+      drawCentered(116, "UPRN unchanged", uiDate(), 2);
       delay(1200);
     }
   }
@@ -639,7 +645,7 @@ bool isGeneralWaste(const ServiceDate &svc) {
 }
 
 uint16_t accentFor(const ServiceDate &svc) {
-  return isGeneralWaste(svc) ? config.colorYellow : config.colorGreen;
+  return isGeneralWaste(svc) ? uiGeneralWaste() : uiRecycling();
 }
 
 String countdownText(const ServiceDate &svc) {
@@ -714,7 +720,7 @@ void drawModeDot() {
   const int firstX = tft.width() - ((count * 9) - 1);
   const int y = bottomY(11);
   for (int i = 0; i < count; i++) {
-    tft.fillCircle(firstX + (i * 9), y, 2, i == config.displayMode ? config.colorBlue : TFT_DARKGREY);
+    tft.fillCircle(firstX + (i * 9), y, 2, i == config.displayMode ? uiClock() : TFT_DARKGREY);
   }
 }
 
@@ -744,13 +750,19 @@ constexpr uint16_t swapRgb565Bytes(uint16_t color) {
 }
 
 uint16_t analogAlertBackgroundColor() {
-  return config.colorRed;
+  return uiAlert();
 }
 
 uint16_t uiRed() { return config.colorRed; }
 uint16_t uiGreen() { return config.colorGreen; }
 uint16_t uiBlue() { return config.colorBlue; }
 uint16_t uiYellow() { return config.colorYellow; }
+uint16_t uiGeneralWaste() { return TFT_LIGHTGREY; }
+uint16_t uiRecycling() { return uiGreen(); }
+uint16_t uiAlert() { return uiRed(); }
+uint16_t uiDone() { return uiGreen(); }
+uint16_t uiClock() { return uiBlue(); }
+uint16_t uiDate() { return uiYellow(); }
 
 #if defined(CYD_TOUCH_ENABLED)
 constexpr uint16_t kColorCandidates[] = {
@@ -810,7 +822,7 @@ void drawAlertCheckbox(int x, int y, int size, bool checked, uint16_t color, uin
 
 void drawCheckboxAlert(const ServiceDate &svc, bool checked) {
   const uint16_t bg = checked ? TFT_BLACK : analogAlertBackgroundColor();
-  const uint16_t main = checked ? uiGreen() : TFT_WHITE;
+  const uint16_t main = checked ? uiDone() : TFT_WHITE;
   tft.fillScreen(bg);
   tft.setTextColor(main, bg);
 
@@ -818,9 +830,9 @@ void drawCheckboxAlert(const ServiceDate &svc, bool checked) {
     drawAlertCheckbox(24, 74, 54, checked, main, bg);
     tft.drawString(putOutLabel(svc), 92, 82, 4);
     tft.drawCentreString(checked ? "Done" : "Put bins out", tft.width() / 2, 150, 4);
-    tft.setTextColor(checked ? TFT_LIGHTGREY : uiYellow(), bg);
+    tft.setTextColor(checked ? TFT_LIGHTGREY : TFT_WHITE, bg);
     tft.drawCentreString(checked ? "Thank you" : "Tonight", tft.width() / 2, 196, 4);
-    tft.setTextColor(TFT_WHITE, bg);
+    tft.setTextColor(checked ? TFT_WHITE : TFT_LIGHTGREY, bg);
     tft.drawCentreString(checked ? conciseDate(svc) : "Before 6am", tft.width() / 2, 238, 4);
     tft.drawCentreString(localTimeText("%H:%M"), tft.width() / 2, 276, 4);
     return;
@@ -828,9 +840,9 @@ void drawCheckboxAlert(const ServiceDate &svc, bool checked) {
 
   drawAlertCheckbox(18, largeScreen() ? 76 : 44, largeScreen() ? 52 : 38, checked, main, bg);
   tft.drawString(putOutLabel(svc), largeScreen() ? 86 : 66, largeScreen() ? 82 : 48, 4);
-  tft.setTextColor(checked ? uiGreen() : uiYellow(), bg);
+  tft.setTextColor(checked ? uiDone() : TFT_WHITE, bg);
   tft.drawCentreString(checked ? "Done" : "Put out tonight", tft.width() / 2, largeScreen() ? 146 : 88, 4);
-  tft.setTextColor(TFT_WHITE, bg);
+  tft.setTextColor(checked ? TFT_WHITE : TFT_LIGHTGREY, bg);
   tft.drawCentreString(checked ? conciseDate(svc) : "Before 6am", tft.width() / 2, largeScreen() ? 194 : 118, 2);
   if (largeScreen()) drawModeDot();
 }
@@ -838,16 +850,16 @@ void drawCheckboxAlert(const ServiceDate &svc, bool checked) {
 void drawFocusAlert(const ServiceDate &svc) {
   tft.fillScreen(TFT_BLACK);
   if (largeScreen()) {
-    drawCentered(24, "TONIGHT", uiRed(), 4);
+    drawCentered(24, "TONIGHT", uiAlert(), 4);
     drawCentered(72, putOutLabel(svc), TFT_WHITE, 4);
-    drawCentered(128, "Put out by 6am", uiYellow(), 4);
-    drawCentered(184, localTimeText("%H:%M"), uiBlue(), 6);
+    drawCentered(128, "Put out by 6am", uiDate(), 4);
+    drawCentered(184, localTimeText("%H:%M"), uiClock(), 6);
     return;
   }
-  drawCentered(2, "TONIGHT", uiRed(), 4);
+  drawCentered(2, "TONIGHT", uiAlert(), 4);
   drawCentered(32, putOutLabel(svc), TFT_WHITE, 4);
-  drawCentered(74, "Put out by 6am", uiYellow(), 4);
-  drawCentered(108, localTimeText("%H:%M"), uiBlue(), 2);
+  drawCentered(74, "Put out by 6am", uiDate(), 4);
+  drawCentered(108, localTimeText("%H:%M"), uiClock(), 2);
 }
 
 void drawFocusLayout(bool detailed) {
@@ -858,7 +870,7 @@ void drawFocusLayout(bool detailed) {
   const int lineY = largeScreen() ? 82 : 55;
   const int rowY = largeScreen() ? 96 : 62;
   const int dateY = largeScreen() ? 136 : 95;
-  tft.setTextColor(uiBlue(), TFT_BLACK);
+  tft.setTextColor(uiClock(), TFT_BLACK);
   tft.drawString(localTimeText("%H:%M"), 6, largeScreen() ? 8 : 0, 6);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.drawRightString(localTimeText("%a %d %b"), tft.width() - 8, largeScreen() ? 18 : 8, 2);
@@ -867,7 +879,7 @@ void drawFocusLayout(bool detailed) {
   drawText(8, rowY, first.label, accentFor(first), 4);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.drawRightString(friendlyDay(first), tft.width() - 8, rowY, 4);
-  tft.setTextColor(uiYellow(), TFT_BLACK);
+  tft.setTextColor(uiDate(), TFT_BLACK);
   tft.drawRightString(conciseDate(first), tft.width() - 8, dateY, 2);
   drawText(8, dateY, "Next collection", TFT_LIGHTGREY, 2);
 
@@ -884,21 +896,21 @@ void drawFocusLayout(bool detailed) {
 void drawStackAlert(const ServiceDate &svc) {
   tft.fillScreen(TFT_BLACK);
   if (largeScreen()) {
-    drawText(10, 12, "Put out", uiRed(), 4);
+    drawText(10, 12, "Put out", uiAlert(), 4);
     tft.setTextColor(TFT_WHITE, TFT_BLACK);
     tft.drawRightString(localTimeText("%H:%M"), tft.width() - 10, 17, 4);
-    tft.drawFastHLine(12, 60, tft.width() - 24, uiRed());
+    tft.drawFastHLine(12, 60, tft.width() - 24, uiAlert());
     drawCentered(88, putOutLabel(svc), TFT_WHITE, 4);
-    drawCentered(142, "Tonight", uiYellow(), 4);
+    drawCentered(142, "Tonight", uiDate(), 4);
     drawModeDot();
     return;
   }
-  drawText(6, 2, "Put out", uiRed(), 4);
+  drawText(6, 2, "Put out", uiAlert(), 4);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.drawRightString(localTimeText("%H:%M"), tft.width() - 8, 7, 4);
-  tft.drawFastHLine(8, 41, tft.width() - 16, uiRed());
+  tft.drawFastHLine(8, 41, tft.width() - 16, uiAlert());
   drawCentered(51, putOutLabel(svc), TFT_WHITE, 4);
-  drawCentered(91, "Tonight", uiYellow(), 4);
+  drawCentered(91, "Tonight", uiDate(), 4);
   drawModeDot();
 }
 
@@ -910,7 +922,7 @@ void drawStackLayout(bool detailed) {
   const int firstY = largeScreen() ? 72 : 37;
   const int dividerY = largeScreen() ? 125 : 75;
   const int secondY = largeScreen() ? 145 : 82;
-  drawText(6, largeScreen() ? 12 : 2, localTimeText("%a %d"), uiBlue(), 4);
+  drawText(6, largeScreen() ? 12 : 2, localTimeText("%a %d"), uiClock(), 4);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.drawRightString(localTimeText("%H:%M"), tft.width() - 8, largeScreen() ? 17 : 7, 4);
 
@@ -918,7 +930,7 @@ void drawStackLayout(bool detailed) {
   drawText(28, firstY, first.label, accentFor(first), 4);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.drawRightString(shortDate(first), tft.width() - 8, firstY + 2, 2);
-  tft.setTextColor(uiYellow(), TFT_BLACK);
+  tft.setTextColor(uiDate(), TFT_BLACK);
   tft.drawRightString(countdownText(first), tft.width() - 8, firstY + 19, 2);
 
   tft.drawFastHLine(8, dividerY, tft.width() - 16, TFT_DARKGREY);
@@ -926,28 +938,28 @@ void drawStackLayout(bool detailed) {
   drawText(28, secondY, second.label, accentFor(second), 4);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.drawRightString(shortDate(second), tft.width() - 8, secondY + 2, 2);
-  tft.setTextColor(uiYellow(), TFT_BLACK);
+  tft.setTextColor(uiDate(), TFT_BLACK);
   tft.drawRightString(countdownText(second), tft.width() - 8, secondY + 19, 2);
   if (detailed) drawModeDot();
 }
 
 void drawTimelineAlert(const ServiceDate &svc) {
-  tft.fillScreen(uiRed());
-  tft.setTextColor(TFT_WHITE, uiRed());
+  tft.fillScreen(uiAlert());
+  tft.setTextColor(TFT_WHITE, uiAlert());
   tft.drawCentreString("TONIGHT", tft.width() / 2, largeScreen() ? 32 : 6, 4);
   tft.drawCentreString(putOutLabel(svc), tft.width() / 2, largeScreen() ? 88 : 44, 4);
-  tft.setTextColor(uiYellow(), uiRed());
+  tft.setTextColor(TFT_WHITE, uiAlert());
   tft.drawCentreString("Before 6am", tft.width() / 2, largeScreen() ? 150 : 91, 4);
 }
 
 void drawClockLayout(bool detailed) {
   tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(uiBlue(), TFT_BLACK);
+  tft.setTextColor(uiClock(), TFT_BLACK);
   const String timeText = localTimeText("%H:%M");
   tft.drawCentreString(timeText == "--" ? "Syncing" : timeText, tft.width() / 2, largeScreen() ? 28 : 6, timeText == "--" ? 4 : 6);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.drawCentreString(localTimeText("%A"), tft.width() / 2, largeScreen() ? 110 : 70, 4);
-  tft.setTextColor(uiYellow(), TFT_BLACK);
+  tft.setTextColor(uiDate(), TFT_BLACK);
   tft.drawCentreString(localTimeText("%d %B"), tft.width() / 2, largeScreen() ? 152 : 101, 4);
   if (detailed) drawModeDot();
 }
@@ -955,12 +967,12 @@ void drawClockLayout(bool detailed) {
 void drawBoldAlert(const ServiceDate &svc) {
   tft.fillScreen(TFT_BLACK);
   const int headerHeight = largeScreen() ? 42 : 28;
-  tft.fillRect(0, 0, tft.width(), headerHeight, uiRed());
-  tft.setTextColor(TFT_WHITE, uiRed());
+  tft.fillRect(0, 0, tft.width(), headerHeight, uiAlert());
+  tft.setTextColor(TFT_WHITE, uiAlert());
   tft.drawCentreString("BINS TONIGHT", tft.width() / 2, largeScreen() ? 10 : 4, 4);
   drawCentered(largeScreen() ? 66 : 42, putOutLabel(svc), accentFor(svc), 4);
   drawCentered(largeScreen() ? 118 : 76, "Put out", TFT_WHITE, 4);
-  drawCentered(largeScreen() ? 162 : 105, "before 6am", uiYellow(), largeScreen() ? 4 : 2);
+  drawCentered(largeScreen() ? 162 : 105, "before 6am", TFT_LIGHTGREY, largeScreen() ? 4 : 2);
 }
 
 void drawBoldLayout(bool detailed) {
@@ -972,7 +984,7 @@ void drawBoldLayout(bool detailed) {
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.drawRightString(localTimeText("%H:%M"), tft.width() - 8, largeScreen() ? 16 : 6, 4);
   drawCentered(largeScreen() ? 78 : 43, shortDate(first), TFT_WHITE, 4);
-  drawCentered(largeScreen() ? 130 : 78, countdownText(first), uiYellow(), 4);
+  drawCentered(largeScreen() ? 130 : 78, countdownText(first), uiDate(), 4);
   if (second.valid) {
     tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
     tft.drawCentreString("Then " + second.label + " " + conciseDate(second), tft.width() / 2, largeScreen() ? 190 : 112, 2);
@@ -984,12 +996,12 @@ void drawStatusLayout() {
   tft.fillScreen(TFT_BLACK);
   const int rowGap = largeScreen() ? 25 : 18;
   const int startY = largeScreen() ? 58 : 35;
-  drawText(6, largeScreen() ? 12 : 0, "Bins v" + String(FIRMWARE_VERSION), uiBlue(), 4);
+  drawText(6, largeScreen() ? 12 : 0, "Bins v" + String(FIRMWARE_VERSION), uiClock(), 4);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.drawRightString(localTimeText("%H:%M"), tft.width() - 8, largeScreen() ? 18 : 6, 4);
 
   drawText(8, startY, "Wi-Fi", TFT_LIGHTGREY, 2);
-  tft.setTextColor(WiFi.status() == WL_CONNECTED ? uiGreen() : uiRed(), TFT_BLACK);
+  tft.setTextColor(WiFi.status() == WL_CONNECTED ? uiDone() : uiAlert(), TFT_BLACK);
   tft.drawString(wifiSummary().substring(0, largeScreen() ? 34 : 24), 82, startY, 2);
 
   drawText(8, startY + rowGap, "IP", TFT_LIGHTGREY, 2);
@@ -1002,22 +1014,22 @@ void drawStatusLayout() {
   drawText(82, startY + (rowGap * 3), config.uprn.substring(0, largeScreen() ? 24 : 18), TFT_WHITE, 2);
 
   drawText(8, startY + (rowGap * 4), "Fetch", TFT_LIGHTGREY, 2);
-  drawText(82, startY + (rowGap * 4), compactTimeText(bins.lastFetch), bins.lastError.length() ? uiYellow() : TFT_WHITE, 2);
+  drawText(82, startY + (rowGap * 4), compactTimeText(bins.lastFetch), bins.lastError.length() ? uiDate() : TFT_WHITE, 2);
 
   const String health = bins.lastError.length() ? bins.lastError : "OK";
-  tft.setTextColor(bins.lastError.length() ? uiYellow() : uiGreen(), TFT_BLACK);
+  tft.setTextColor(bins.lastError.length() ? uiDate() : uiDone(), TFT_BLACK);
   tft.drawString(("Up " + uptimeText() + " " + health).substring(0, largeScreen() ? 36 : 24), 8, bottomY(18), 2);
   drawModeDot();
 }
 
 void drawWideAlert(const ServiceDate &svc) {
   tft.fillScreen(TFT_BLACK);
-  tft.fillRect(0, 0, tft.width(), 54, uiRed());
-  tft.setTextColor(TFT_WHITE, uiRed());
+  tft.fillRect(0, 0, tft.width(), 54, uiAlert());
+  tft.setTextColor(TFT_WHITE, uiAlert());
   tft.drawString("TONIGHT", 12, 12, 4);
   tft.drawRightString(localTimeText("%H:%M"), tft.width() - 12, 12, 4);
   drawText(14, 76, putOutLabel(svc), TFT_WHITE, 6);
-  drawText(16, 150, "Put out before 6am", uiYellow(), 4);
+  drawText(16, 150, "Put out before 6am", TFT_LIGHTGREY, 4);
   drawText(18, 206, shortDate(svc), accentFor(svc), 2);
   drawModeDot();
 }
@@ -1056,8 +1068,8 @@ void drawAnalogClockFace(int cx, int cy, int radius, uint16_t faceColor, uint16_
     }
   };
   drawThickHand(hourAngle, radius * 0.48f, 3, handColor, cx, cy);
-  drawThickHand(minuteAngle, radius * 0.72f, 2, uiBlue(), cx, cy);
-  tft.fillCircle(cx, cy, 4, uiYellow());
+  drawThickHand(minuteAngle, radius * 0.72f, 2, uiClock(), cx, cy);
+  tft.fillCircle(cx, cy, 4, uiDate());
 }
 
 void drawAnalogClockAlert(const ServiceDate &svc) {
@@ -1066,7 +1078,7 @@ void drawAnalogClockAlert(const ServiceDate &svc) {
   tft.setTextColor(TFT_WHITE, bg);
   tft.drawCentreString("BINS TONIGHT", tft.width() / 2, 12, 4);
   tft.drawCentreString(putOutLabel(svc), tft.width() / 2, 70, 4);
-  tft.setTextColor(uiYellow(), bg);
+  tft.setTextColor(TFT_WHITE, bg);
   tft.drawCentreString("Put out before 6am", tft.width() / 2, 126, 4);
   tft.setTextColor(TFT_WHITE, bg);
   tft.drawCentreString(localTimeText("%H:%M") + "  " + shortDate(svc), tft.width() / 2, 190, 4);
@@ -1078,7 +1090,7 @@ void drawLargeDashboardLayout(bool detailed) {
   orderedMainCollections(first, second);
   tft.fillScreen(TFT_BLACK);
 
-  drawText(10, 8, localTimeText("%H:%M"), uiBlue(), 6);
+  drawText(10, 8, localTimeText("%H:%M"), uiClock(), 6);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.drawRightString(localTimeText("%A"), tft.width() - 10, 14, 4);
   tft.drawRightString(localTimeText("%d %B"), tft.width() - 10, 48, 2);
@@ -1087,7 +1099,7 @@ void drawLargeDashboardLayout(bool detailed) {
   drawText(20, 92, "Next", TFT_LIGHTGREY, 2);
   drawText(20, 112, first.label, accentFor(first), 4);
   drawText(20, 150, friendlyDay(first), TFT_WHITE, 4);
-  tft.setTextColor(uiYellow(), TFT_BLACK);
+  tft.setTextColor(uiDate(), TFT_BLACK);
   tft.drawRightString(countdownText(first), tft.width() - 12, 130, 4);
 
   if (second.valid) {
@@ -1104,11 +1116,11 @@ void drawLargeAnalogClockLayout(bool detailed) {
   tft.fillScreen(TFT_BLACK);
   drawAnalogClockFace(98, 130, 82, TFT_LIGHTGREY, TFT_WHITE);
 
-  tft.setTextColor(uiBlue(), TFT_BLACK);
+  tft.setTextColor(uiClock(), TFT_BLACK);
   tft.drawString(localTimeText("%H:%M"), 204, 30, 4);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.drawString(localTimeText("%A"), 204, 94, 4);
-  tft.setTextColor(uiYellow(), TFT_BLACK);
+  tft.setTextColor(uiDate(), TFT_BLACK);
   tft.drawString(localTimeText("%d %B"), 204, 128, 4);
   tft.drawFastHLine(204, 168, 104, TFT_DARKGREY);
   drawText(204, 182, "Next", TFT_LIGHTGREY, 2);
@@ -1161,7 +1173,7 @@ void drawPortraitAlert(const ServiceDate &svc) {
   tft.setTextColor(TFT_WHITE, bg);
   tft.drawCentreString("PUT BINS OUT", tft.width() / 2, 24, 4);
   tft.drawCentreString(putOutLabel(svc), tft.width() / 2, 86, 4);
-  tft.setTextColor(uiYellow(), bg);
+  tft.setTextColor(TFT_WHITE, bg);
   tft.drawCentreString("Tonight", tft.width() / 2, 142, 4);
   tft.setTextColor(TFT_WHITE, bg);
   tft.drawCentreString("Before 6am", tft.width() / 2, 190, 4);
@@ -1171,11 +1183,11 @@ void drawPortraitAlert(const ServiceDate &svc) {
 void drawPortraitCleanLayout(bool detailed) {
   ServiceDate first = nextMainCollection();
   tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(uiBlue(), TFT_BLACK);
+  tft.setTextColor(uiClock(), TFT_BLACK);
   tft.drawCentreString(localTimeText("%H:%M"), tft.width() / 2, 24, 6);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.drawCentreString(localTimeText("%A"), tft.width() / 2, 102, 4);
-  tft.setTextColor(uiYellow(), TFT_BLACK);
+  tft.setTextColor(uiDate(), TFT_BLACK);
   tft.drawCentreString(localTimeText("%d %B"), tft.width() / 2, 136, 4);
   tft.drawFastHLine(36, 206, tft.width() - 72, TFT_DARKGREY);
   drawText(34, 226, "Next bin", TFT_LIGHTGREY, 2);
@@ -1201,7 +1213,7 @@ void drawPortraitFocusLayout(bool detailed) {
   tft.drawCentreString(first.label, tft.width() / 2, 70, 4);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.drawCentreString(friendlyDay(first), tft.width() / 2, 116, 6);
-  tft.setTextColor(uiYellow(), TFT_BLACK);
+  tft.setTextColor(uiDate(), TFT_BLACK);
   tft.drawCentreString(conciseDate(first), tft.width() / 2, 190, 4);
 
   tft.drawFastHLine(24, 238, tft.width() - 48, TFT_DARKGREY);
@@ -1210,14 +1222,14 @@ void drawPortraitFocusLayout(bool detailed) {
   tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
   tft.drawRightString(friendlyDay(second), tft.width() - 24, 250, 2);
   drawText(24, 282, countdownText(first), TFT_LIGHTGREY, 2);
-  tft.setTextColor(uiBlue(), TFT_BLACK);
+  tft.setTextColor(uiClock(), TFT_BLACK);
   tft.drawRightString(localTimeText("%H:%M"), tft.width() - 24, 276, 2);
   if (detailed) drawModeDot();
 }
 
 void drawPortraitCardsLayout(bool detailed) {
   tft.fillScreen(TFT_BLACK);
-  drawText(12, 10, localTimeText("%H:%M"), uiBlue(), 4);
+  drawText(12, 10, localTimeText("%H:%M"), uiClock(), 4);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.drawRightString(localTimeText("%a %d"), tft.width() - 12, 16, 2);
 
@@ -1227,7 +1239,7 @@ void drawPortraitCardsLayout(bool detailed) {
     drawText(30, y + 12, svc.label, accentFor(svc), 2);
     tft.setTextColor(TFT_WHITE, TFT_BLACK);
     tft.drawString(friendlyDay(svc), 30, y + 38, 4);
-    tft.setTextColor(uiYellow(), TFT_BLACK);
+    tft.setTextColor(uiDate(), TFT_BLACK);
     tft.drawRightString(conciseDate(svc), 216, y + 58, 2);
   };
 
@@ -1242,7 +1254,7 @@ void drawPortraitAnalogLayout(bool detailed) {
   drawAnalogClockFace(tft.width() / 2, 104, 82, TFT_LIGHTGREY, TFT_WHITE);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.drawCentreString(localTimeText("%A"), tft.width() / 2, 202, 4);
-  tft.setTextColor(uiYellow(), TFT_BLACK);
+  tft.setTextColor(uiDate(), TFT_BLACK);
   tft.drawCentreString(localTimeText("%d %B"), tft.width() / 2, 236, 4);
   tft.setTextColor(accentFor(first), TFT_BLACK);
   tft.drawCentreString(first.label + " " + friendlyDay(first), tft.width() / 2, 280, 2);
@@ -1254,7 +1266,7 @@ void drawPortraitAgendaLayout(bool detailed) {
   ServiceDate second;
   orderedMainCollections(first, second);
   tft.fillScreen(TFT_BLACK);
-  drawText(12, 10, "Next two", uiBlue(), 4);
+  drawText(12, 10, "Next two", uiClock(), 4);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.drawRightString(localTimeText("%H:%M"), tft.width() - 12, 18, 2);
 
@@ -1263,7 +1275,7 @@ void drawPortraitAgendaLayout(bool detailed) {
   tft.drawCentreString("1", 26, 75, 2);
   drawText(48, 64, first.label, accentFor(first), 4);
   drawText(48, 104, friendlyDay(first), TFT_WHITE, 4);
-  tft.setTextColor(uiYellow(), TFT_BLACK);
+  tft.setTextColor(uiDate(), TFT_BLACK);
   tft.drawRightString(conciseDate(first), tft.width() - 14, 112, 2);
 
   tft.drawFastHLine(18, 166, tft.width() - 36, TFT_DARKGREY);
@@ -1272,7 +1284,7 @@ void drawPortraitAgendaLayout(bool detailed) {
   tft.drawCentreString("2", 26, 199, 2);
   drawText(48, 188, second.label, accentFor(second), 4);
   drawText(48, 228, friendlyDay(second), TFT_WHITE, 4);
-  tft.setTextColor(uiYellow(), TFT_BLACK);
+  tft.setTextColor(uiDate(), TFT_BLACK);
   tft.drawRightString(conciseDate(second), tft.width() - 14, 236, 2);
   drawText(18, 282, WiFi.status() == WL_CONNECTED ? "Wi-Fi OK" : "Wi-Fi offline", TFT_LIGHTGREY, 2);
   if (detailed) drawModeDot();
@@ -1353,7 +1365,7 @@ void toggleLayoutOrientation() {
 
 void refreshCollections() {
   lastFetchAttemptMs = 0;
-  drawCentered(bottomY(19), "Refreshing...", uiYellow(), 2);
+  drawCentered(bottomY(19), "Refreshing...", uiDate(), 2);
   fetchBins();
   drawScreen();
 }
@@ -1496,15 +1508,15 @@ void setup() {
   tft.fillScreen(TFT_BLACK);
   const bool forcePortal = !readButton(kButtonLeft);
   if (forcePortal) {
-    drawCentered(bottomY(24), "Resetting setup", uiYellow(), 2);
+    drawCentered(bottomY(24), "Resetting setup", uiDate(), 2);
     delay(1200);
   }
   connectWifi(forcePortal);
   configTzTime("GMT0BST,M3.5.0/1,M10.5.0/2", "pool.ntp.org", "time.nist.gov");
-  drawCentered(88, "Syncing time", uiBlue(), 4);
+  drawCentered(88, "Syncing time", uiClock(), 4);
   waitForClock();
 
-  drawCentered(88, "Fetching bins", uiBlue(), 4);
+  drawCentered(88, "Fetching bins", uiClock(), 4);
   fetchBins();
   drawScreen();
 }

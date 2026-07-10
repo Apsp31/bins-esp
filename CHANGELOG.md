@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.17] - 2026-07-10
+
+- Remap CYD UI colours into clearer semantic roles for alert, done, clock, date, General Waste, and Recycling.
+- Make General Waste neutral instead of yellow so yellow is reserved for dates/attention.
+- Simplify alert checkbox colours to red/white for action and black/green for acknowledged.
+
 ## [0.1.16] - 2026-07-10
 
 - Add saved bin acknowledgement state for General Waste and Recycling collection dates.
