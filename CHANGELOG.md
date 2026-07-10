@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.21] - 2026-07-10
+
+- Remove the cramped portrait focus layout that could show a stray oversized weekday letter.
+- Renumber the remaining portrait layouts to four pages, with the collection cards now on page 2.
+
 ## [0.1.20] - 2026-07-10
 
 - Replace the low-contrast yellow date and attention text with white across CYD layouts.

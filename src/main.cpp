@@ -23,7 +23,7 @@ constexpr const char *kQuickSearchEndpoint = "https://gis.stalbans.gov.uk/Notice
 constexpr uint32_t kFetchIntervalMs = 6UL * 60UL * 60UL * 1000UL;
 constexpr uint8_t kBaseDisplayModeCount = 5;
 constexpr uint8_t kLargeDisplayModeCount = 7;
-constexpr uint8_t kPortraitDisplayModeCount = 5;
+constexpr uint8_t kPortraitDisplayModeCount = 4;
 constexpr uint16_t kDefaultColorRed = 0x07FF;
 constexpr uint16_t kDefaultColorGreen = 0xE0FF;
 constexpr uint16_t kDefaultColorBlue = 0xFFE0;
@@ -1212,34 +1212,6 @@ void drawPortraitCleanLayout(bool detailed) {
   if (detailed) drawModeDot();
 }
 
-void drawPortraitFocusLayout(bool detailed) {
-  ServiceDate first;
-  ServiceDate second;
-  orderedMainCollections(first, second);
-  tft.fillScreen(TFT_BLACK);
-
-  tft.fillRect(0, 0, tft.width(), 44, accentFor(first));
-  tft.setTextColor(TFT_BLACK, accentFor(first));
-  tft.drawCentreString("NEXT", tft.width() / 2, 10, 4);
-
-  tft.setTextColor(accentFor(first), TFT_BLACK);
-  tft.drawCentreString(first.label, tft.width() / 2, 70, 4);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.drawCentreString(friendlyDay(first), tft.width() / 2, 116, 6);
-  tft.setTextColor(uiDate(), TFT_BLACK);
-  tft.drawCentreString(conciseDate(first), tft.width() / 2, 190, 4);
-
-  tft.drawFastHLine(24, 238, tft.width() - 48, TFT_DARKGREY);
-  drawText(24, 256, "Then", TFT_LIGHTGREY, 2);
-  drawText(78, 250, second.label, accentFor(second), 2);
-  tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-  tft.drawRightString(friendlyDay(second), tft.width() - 24, 250, 2);
-  drawText(24, 282, countdownText(first), TFT_LIGHTGREY, 2);
-  tft.setTextColor(uiClock(), TFT_BLACK);
-  tft.drawRightString(localTimeText("%H:%M"), tft.width() - 24, 276, 2);
-  if (detailed) drawModeDot();
-}
-
 void drawPortraitCardsLayout(bool detailed) {
   tft.fillScreen(TFT_BLACK);
   drawText(12, 10, localTimeText("%H:%M"), uiClock(), 4);
@@ -1306,10 +1278,9 @@ void drawPortraitAgendaLayout(bool detailed) {
 void drawNormalLayout(bool detailed) {
   if (portraitLayoutActive()) {
     if (config.displayMode == 0) drawPortraitCleanLayout(detailed);
-    if (config.displayMode == 1) drawPortraitFocusLayout(detailed);
-    if (config.displayMode == 2) drawPortraitCardsLayout(detailed);
-    if (config.displayMode == 3) drawPortraitAnalogLayout(detailed);
-    if (config.displayMode == 4) drawPortraitAgendaLayout(detailed);
+    if (config.displayMode == 1) drawPortraitCardsLayout(detailed);
+    if (config.displayMode == 2) drawPortraitAnalogLayout(detailed);
+    if (config.displayMode == 3) drawPortraitAgendaLayout(detailed);
     return;
   }
   if (config.displayMode == 0) drawFocusLayout(detailed);
