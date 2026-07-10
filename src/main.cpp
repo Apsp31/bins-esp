@@ -76,6 +76,10 @@ struct BinState {
   ServiceDate recycling;
   ServiceDate food;
   ServiceDate garden;
+  String refuseAckDate;
+  String recyclingAckDate;
+  time_t refuseAckAt = 0;
+  time_t recyclingAckAt = 0;
   String lastError;
   time_t lastFetch = 0;
   bool loaded = false;
@@ -88,6 +92,7 @@ uint16_t uiRed();
 uint16_t uiGreen();
 uint16_t uiBlue();
 uint16_t uiYellow();
+bool isGeneralWaste(const ServiceDate &svc);
 
 uint32_t lastFetchAttemptMs = 0;
 uint32_t lastDrawMs = 0;
@@ -303,6 +308,62 @@ bool inAlertWindow(const ServiceDate &svc) {
   return false;
 }
 
+bool acknowledgementExpired(const ServiceDate &svc) {
+  if (!svc.valid) return true;
+  const int diff = daysUntil(svc);
+  if (diff < 0) return true;
+  if (diff > 0) return false;
+  time_t now = time(nullptr);
+  if (now < 1700000000) return false;
+  tm nowInfo = *localtime(&now);
+  return nowInfo.tm_hour >= 12;
+}
+
+bool acknowledgementMatches(const ServiceDate &svc) {
+  if (!svc.valid || acknowledgementExpired(svc)) return false;
+  if (isGeneralWaste(svc)) return bins.refuseAckDate == svc.date;
+  return bins.recyclingAckDate == svc.date;
+}
+
+void clearAcknowledgement(const ServiceDate &svc) {
+  if (isGeneralWaste(svc)) {
+    bins.refuseAckDate = "";
+    bins.refuseAckAt = 0;
+    prefs.remove("refAckDate");
+    prefs.remove("refAckAt");
+    return;
+  }
+  bins.recyclingAckDate = "";
+  bins.recyclingAckAt = 0;
+  prefs.remove("recAckDate");
+  prefs.remove("recAckAt");
+}
+
+void saveAcknowledgement(const ServiceDate &svc) {
+  const time_t now = time(nullptr);
+  if (isGeneralWaste(svc)) {
+    bins.refuseAckDate = svc.date;
+    bins.refuseAckAt = now;
+    prefs.putString("refAckDate", bins.refuseAckDate);
+    prefs.putLong64("refAckAt", bins.refuseAckAt);
+    return;
+  }
+  bins.recyclingAckDate = svc.date;
+  bins.recyclingAckAt = now;
+  prefs.putString("recAckDate", bins.recyclingAckDate);
+  prefs.putLong64("recAckAt", bins.recyclingAckAt);
+}
+
+void pruneAcknowledgements() {
+  if (bins.refuseAckDate.length() && (bins.refuseAckDate != bins.refuse.date || acknowledgementExpired(bins.refuse))) {
+    clearAcknowledgement(bins.refuse);
+  }
+  if (bins.recyclingAckDate.length() &&
+      (bins.recyclingAckDate != bins.recycling.date || acknowledgementExpired(bins.recycling))) {
+    clearAcknowledgement(bins.recycling);
+  }
+}
+
 void waitForClock() {
   for (int i = 0; i < 20; i++) {
     if (time(nullptr) >= 1700000000) return;
@@ -326,6 +387,10 @@ void loadConfig() {
   bins.recycling.date = prefs.getString("recycleDate", "");
   bins.food.date = prefs.getString("foodDate", "");
   bins.garden.date = prefs.getString("gardenDate", "");
+  bins.refuseAckDate = prefs.getString("refAckDate", "");
+  bins.recyclingAckDate = prefs.getString("recAckDate", "");
+  bins.refuseAckAt = prefs.getLong64("refAckAt", 0);
+  bins.recyclingAckAt = prefs.getLong64("recAckAt", 0);
   bins.lastFetch = prefs.getLong64("lastFetch", 0);
 
   auto hydrate = [](ServiceDate &svc, const String &name, const String &label) {
@@ -340,6 +405,7 @@ void loadConfig() {
   hydrate(bins.food, "Domestic Food Collection", "Food");
   hydrate(bins.garden, "Domestic Garden Waste Collection", "Garden");
   bins.loaded = bins.refuse.valid || bins.recycling.valid || bins.food.valid || bins.garden.valid;
+  pruneAcknowledgements();
 }
 
 void saveConfig() {
@@ -360,6 +426,7 @@ void saveBinCache() {
   prefs.putString("foodDate", bins.food.date);
   prefs.putString("gardenDate", bins.garden.date);
   prefs.putLong64("lastFetch", bins.lastFetch);
+  pruneAcknowledgements();
 }
 
 bool lookupUprnForPostcode(const String &postcode, String &uprnOut) {
@@ -617,8 +684,16 @@ String putOutLabel(const ServiceDate &svc) {
 }
 
 ServiceDate alertCollection() {
-  if (inAlertWindow(bins.refuse)) return bins.refuse;
-  if (inAlertWindow(bins.recycling)) return bins.recycling;
+  pruneAcknowledgements();
+  if (inAlertWindow(bins.refuse) && !acknowledgementMatches(bins.refuse)) return bins.refuse;
+  if (inAlertWindow(bins.recycling) && !acknowledgementMatches(bins.recycling)) return bins.recycling;
+  return ServiceDate();
+}
+
+ServiceDate acknowledgedAlertCollection() {
+  pruneAcknowledgements();
+  if (inAlertWindow(bins.refuse) && acknowledgementMatches(bins.refuse)) return bins.refuse;
+  if (inAlertWindow(bins.recycling) && acknowledgementMatches(bins.recycling)) return bins.recycling;
   return ServiceDate();
 }
 
@@ -721,6 +796,43 @@ String alertLabel() {
     label += putOutLabel(bins.recycling);
   }
   return label;
+}
+
+void drawAlertCheckbox(int x, int y, int size, bool checked, uint16_t color, uint16_t bg) {
+  tft.drawRoundRect(x, y, size, size, 5, color);
+  tft.drawRoundRect(x + 1, y + 1, size - 2, size - 2, 4, color);
+  if (!checked) return;
+  tft.drawLine(x + 10, y + (size / 2), x + (size / 2) - 2, y + size - 12, color);
+  tft.drawLine(x + 11, y + (size / 2), x + (size / 2) - 1, y + size - 12, color);
+  tft.drawLine(x + (size / 2) - 2, y + size - 12, x + size - 10, y + 10, color);
+  tft.drawLine(x + (size / 2) - 1, y + size - 12, x + size - 9, y + 10, color);
+}
+
+void drawCheckboxAlert(const ServiceDate &svc, bool checked) {
+  const uint16_t bg = checked ? TFT_BLACK : analogAlertBackgroundColor();
+  const uint16_t main = checked ? uiGreen() : TFT_WHITE;
+  tft.fillScreen(bg);
+  tft.setTextColor(main, bg);
+
+  if (portraitLayoutActive()) {
+    drawAlertCheckbox(24, 74, 54, checked, main, bg);
+    tft.drawString(putOutLabel(svc), 92, 82, 4);
+    tft.drawCentreString(checked ? "Done" : "Put bins out", tft.width() / 2, 150, 4);
+    tft.setTextColor(checked ? TFT_LIGHTGREY : uiYellow(), bg);
+    tft.drawCentreString(checked ? "Thank you" : "Tonight", tft.width() / 2, 196, 4);
+    tft.setTextColor(TFT_WHITE, bg);
+    tft.drawCentreString(checked ? conciseDate(svc) : "Before 6am", tft.width() / 2, 238, 4);
+    tft.drawCentreString(localTimeText("%H:%M"), tft.width() / 2, 276, 4);
+    return;
+  }
+
+  drawAlertCheckbox(18, largeScreen() ? 76 : 44, largeScreen() ? 52 : 38, checked, main, bg);
+  tft.drawString(putOutLabel(svc), largeScreen() ? 86 : 66, largeScreen() ? 82 : 48, 4);
+  tft.setTextColor(checked ? uiGreen() : uiYellow(), bg);
+  tft.drawCentreString(checked ? "Done" : "Put out tonight", tft.width() / 2, largeScreen() ? 146 : 88, 4);
+  tft.setTextColor(TFT_WHITE, bg);
+  tft.drawCentreString(checked ? conciseDate(svc) : "Before 6am", tft.width() / 2, largeScreen() ? 194 : 118, 2);
+  if (largeScreen()) drawModeDot();
 }
 
 void drawFocusAlert(const ServiceDate &svc) {
@@ -1188,6 +1300,10 @@ void drawNormalLayout(bool detailed) {
 }
 
 void drawAlertLayout(const ServiceDate &svc) {
+#if defined(CHEAP_YELLOW_DISPLAY)
+  drawCheckboxAlert(svc, acknowledgementMatches(svc));
+  return;
+#endif
   if (portraitLayoutActive()) {
     drawPortraitAlert(svc);
     return;
@@ -1207,6 +1323,13 @@ void drawScreen() {
   if (alert.valid) {
     drawAlertLayout(alert);
     return;
+  }
+  if (!previewAlert) {
+    ServiceDate doneAlert = acknowledgedAlertCollection();
+    if (doneAlert.valid) {
+      drawCheckboxAlert(doneAlert, true);
+      return;
+    }
   }
   drawNormalLayout(config.showStatusWhenIdle);
 }
@@ -1235,6 +1358,35 @@ void refreshCollections() {
   drawScreen();
 }
 
+ServiceDate acknowledgementTarget() {
+  ServiceDate alert = alertCollection();
+  if (alert.valid) return alert;
+  return acknowledgedAlertCollection();
+}
+
+bool toggleAcknowledgementForCurrentAlert() {
+  if (previewAlert) return false;
+  ServiceDate svc = acknowledgementTarget();
+  if (!svc.valid) return false;
+  if (acknowledgementMatches(svc)) {
+    clearAcknowledgement(svc);
+  } else {
+    saveAcknowledgement(svc);
+  }
+  drawScreen();
+  return true;
+}
+
+bool pointInAcknowledgementBox(uint16_t x, uint16_t y) {
+  if (!acknowledgementTarget().valid || previewAlert) return false;
+  if (portraitLayoutActive()) {
+    return x >= 12 && x <= 94 && y >= 60 && y <= 144;
+  }
+  const int top = largeScreen() ? 62 : 34;
+  const int bottom = largeScreen() ? 144 : 92;
+  return x >= 8 && x <= 86 && y >= top && y <= bottom;
+}
+
 #if defined(CYD_TOUCH_ENABLED)
 void handleTouch() {
   uint16_t x = 0;
@@ -1253,8 +1405,10 @@ void handleTouch() {
 
   if (touched && !touchLongHandled && millis() - touchPressedAtMs > 900UL) {
     if (touchRightSide) {
-      previewAlert = !previewAlert;
-      drawScreen();
+      if (!toggleAcknowledgementForCurrentAlert()) {
+        previewAlert = !previewAlert;
+        drawScreen();
+      }
     } else {
       toggleLayoutOrientation();
     }
@@ -1262,7 +1416,9 @@ void handleTouch() {
   }
 
   if (!touched && lastTouch && !touchLongHandled) {
-    if (handleColorCalibrationTouch(touchLastX, touchLastY)) {
+    if (pointInAcknowledgementBox(touchLastX, touchLastY)) {
+      toggleAcknowledgementForCurrentAlert();
+    } else if (handleColorCalibrationTouch(touchLastX, touchLastY)) {
       // Selection handled by the colour calibration page.
     } else if (touchRightSide) {
       refreshCollections();
@@ -1304,7 +1460,9 @@ void handleButtons() {
   }
 
   if (!right && !rightLongHandled && millis() - rightPressedAtMs > 900UL) {
-    previewAlert = !previewAlert;
+    if (!toggleAcknowledgementForCurrentAlert()) {
+      previewAlert = !previewAlert;
+    }
     rightLongHandled = true;
     drawScreen();
   }

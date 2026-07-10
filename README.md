@@ -59,6 +59,7 @@ If the access point does not appear, the ESP may already have saved Wi-Fi creden
 - CYD hold left-half touch: toggle between landscape and portrait layout sets.
 - CYD right-half touch: refresh collection data now.
 - CYD hold right-half touch: toggle alert preview mode.
+- CYD alert checkbox: tap the box to mark the current bins as put out; tap it again to undo before the alert clears.
 - CYD user button short press: cycle through the eight display pages.
 - CYD user button long press: refresh collection data now.
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.16] - 2026-07-10
+
+- Add saved bin acknowledgement state for General Waste and Recycling collection dates.
+- Show a large alert checkbox on CYD screens that can be tapped to mark bins as put out.
+- Keep acknowledged alerts calm and ticked until collection day midday, then clear them automatically.
+
 ## [0.1.15] - 2026-06-04
 
 - Replace CYD portrait page 2 with a clearer ranked `Next` and `Then` collection view.
