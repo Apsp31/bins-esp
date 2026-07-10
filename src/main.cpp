@@ -22,7 +22,7 @@ constexpr const char *kEndpoint =
 constexpr const char *kQuickSearchEndpoint = "https://gis.stalbans.gov.uk/NoticeBoard9/quicksearch.asmx";
 constexpr uint32_t kFetchIntervalMs = 6UL * 60UL * 60UL * 1000UL;
 constexpr uint8_t kBaseDisplayModeCount = 5;
-constexpr uint8_t kLargeDisplayModeCount = 8;
+constexpr uint8_t kLargeDisplayModeCount = 7;
 constexpr uint8_t kPortraitDisplayModeCount = 5;
 constexpr uint16_t kDefaultColorRed = 0x07FF;
 constexpr uint16_t kDefaultColorGreen = 0xE0FF;
@@ -105,6 +105,7 @@ uint32_t lastDrawMs = 0;
 bool lastLeft = true;
 bool lastRight = true;
 bool previewAlert = false;
+bool previewAcknowledged = false;
 bool rightLongHandled = false;
 uint32_t rightPressedAtMs = 0;
 #if defined(CHEAP_YELLOW_DISPLAY)
@@ -715,10 +716,29 @@ void drawFooter(bool detailed) {
   drawText(6, bottomY(16), footerText(detailed).substring(0, 42), TFT_LIGHTGREY, 2);
 }
 
+String pageLayoutName() {
+#if defined(CHEAP_YELLOW_DISPLAY)
+  return portraitLayoutActive() ? "P" : "L";
+#else
+  return "";
+#endif
+}
+
+void drawPageBadge() {
+  const String layout = pageLayoutName();
+  String label = "Page " + String(config.displayMode + 1) + "/" + String(displayModeCount());
+  if (layout.length()) label += " " + layout;
+  const int y = bottomY(17);
+  tft.fillRect(0, y - 1, 74, 18, TFT_BLACK);
+  tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+  tft.drawString(label, 4, y, 2);
+}
+
 void drawModeDot() {
   const uint8_t count = displayModeCount();
   const int firstX = tft.width() - ((count * 9) - 1);
   const int y = bottomY(11);
+  drawPageBadge();
   for (int i = 0; i < count; i++) {
     tft.fillCircle(firstX + (i * 9), y, 2, i == config.displayMode ? uiClock() : TFT_DARKGREY);
   }
@@ -835,6 +855,7 @@ void drawCheckboxAlert(const ServiceDate &svc, bool checked) {
     tft.setTextColor(checked ? TFT_WHITE : TFT_LIGHTGREY, bg);
     tft.drawCentreString(checked ? conciseDate(svc) : "Before 6am", tft.width() / 2, 238, 4);
     tft.drawCentreString(localTimeText("%H:%M"), tft.width() / 2, 276, 4);
+    drawPageBadge();
     return;
   }
 
@@ -844,7 +865,7 @@ void drawCheckboxAlert(const ServiceDate &svc, bool checked) {
   tft.drawCentreString(checked ? "Done" : "Put out tonight", tft.width() / 2, largeScreen() ? 146 : 88, 4);
   tft.setTextColor(checked ? TFT_WHITE : TFT_LIGHTGREY, bg);
   tft.drawCentreString(checked ? conciseDate(svc) : "Before 6am", tft.width() / 2, largeScreen() ? 194 : 118, 2);
-  if (largeScreen()) drawModeDot();
+  drawModeDot();
 }
 
 void drawFocusAlert(const ServiceDate &svc) {
@@ -1151,18 +1172,8 @@ void drawColorCalibrationLayout() {
 }
 
 bool handleColorCalibrationTouch(uint16_t x, uint16_t y) {
-  if (config.displayMode != 7 || !largeScreen()) return false;
-  for (int i = 0; i < 16; i++) {
-    const int col = i % 4;
-    const int row = i / 4;
-    const int sx = 8 + (col * 78);
-    const int sy = 62 + (row * 34);
-    if (x >= sx && x <= sx + 68 && y >= sy && y <= sy + 24) {
-      storeSelectedColor(kColorCandidates[i]);
-      drawColorCalibrationLayout();
-      return true;
-    }
-  }
+  (void)x;
+  (void)y;
   return false;
 }
 #endif
@@ -1306,14 +1317,11 @@ void drawNormalLayout(bool detailed) {
   if (config.displayMode == 4) drawStatusLayout();
   if (largeScreen() && config.displayMode == 5) drawLargeDashboardLayout(detailed);
   if (largeScreen() && config.displayMode == 6) drawLargeAnalogClockLayout(detailed);
-#if defined(CYD_TOUCH_ENABLED)
-  if (largeScreen() && config.displayMode == 7) drawColorCalibrationLayout();
-#endif
 }
 
 void drawAlertLayout(const ServiceDate &svc) {
 #if defined(CHEAP_YELLOW_DISPLAY)
-  drawCheckboxAlert(svc, acknowledgementMatches(svc));
+  drawCheckboxAlert(svc, previewAlert ? previewAcknowledged : acknowledgementMatches(svc));
   return;
 #endif
   if (portraitLayoutActive()) {
@@ -1327,7 +1335,6 @@ void drawAlertLayout(const ServiceDate &svc) {
   if (config.displayMode == 4) drawFocusAlert(svc);
   if (largeScreen() && config.displayMode == 5) drawWideAlert(svc);
   if (largeScreen() && config.displayMode == 6) drawAnalogClockAlert(svc);
-  if (largeScreen() && config.displayMode == 7) drawWideAlert(svc);
 }
 
 void drawScreen() {
@@ -1370,6 +1377,12 @@ void refreshCollections() {
   drawScreen();
 }
 
+void togglePreviewAlert() {
+  previewAlert = !previewAlert;
+  previewAcknowledged = false;
+  drawScreen();
+}
+
 ServiceDate acknowledgementTarget() {
   ServiceDate alert = alertCollection();
   if (alert.valid) return alert;
@@ -1377,7 +1390,11 @@ ServiceDate acknowledgementTarget() {
 }
 
 bool toggleAcknowledgementForCurrentAlert() {
-  if (previewAlert) return false;
+  if (previewAlert) {
+    previewAcknowledged = !previewAcknowledged;
+    drawScreen();
+    return true;
+  }
   ServiceDate svc = acknowledgementTarget();
   if (!svc.valid) return false;
   if (acknowledgementMatches(svc)) {
@@ -1390,7 +1407,8 @@ bool toggleAcknowledgementForCurrentAlert() {
 }
 
 bool pointInAcknowledgementBox(uint16_t x, uint16_t y) {
-  if (!acknowledgementTarget().valid || previewAlert) return false;
+  if (previewAlert && !nextMainCollection().valid) return false;
+  if (!previewAlert && !acknowledgementTarget().valid) return false;
   if (portraitLayoutActive()) {
     return x >= 12 && x <= 94 && y >= 60 && y <= 144;
   }
@@ -1417,9 +1435,10 @@ void handleTouch() {
 
   if (touched && !touchLongHandled && millis() - touchPressedAtMs > 900UL) {
     if (touchRightSide) {
-      if (!toggleAcknowledgementForCurrentAlert()) {
-        previewAlert = !previewAlert;
-        drawScreen();
+      if (previewAlert) {
+        togglePreviewAlert();
+      } else if (!toggleAcknowledgementForCurrentAlert()) {
+        togglePreviewAlert();
       }
     } else {
       toggleLayoutOrientation();
@@ -1431,7 +1450,7 @@ void handleTouch() {
     if (pointInAcknowledgementBox(touchLastX, touchLastY)) {
       toggleAcknowledgementForCurrentAlert();
     } else if (handleColorCalibrationTouch(touchLastX, touchLastY)) {
-      // Selection handled by the colour calibration page.
+      // Reserved for maintenance-only colour calibration.
     } else if (touchRightSide) {
       refreshCollections();
     } else {
@@ -1472,11 +1491,12 @@ void handleButtons() {
   }
 
   if (!right && !rightLongHandled && millis() - rightPressedAtMs > 900UL) {
-    if (!toggleAcknowledgementForCurrentAlert()) {
-      previewAlert = !previewAlert;
+    if (previewAlert) {
+      togglePreviewAlert();
+    } else if (!toggleAcknowledgementForCurrentAlert()) {
+      togglePreviewAlert();
     }
     rightLongHandled = true;
-    drawScreen();
   }
 
   if (right && !lastRight && !rightLongHandled) {

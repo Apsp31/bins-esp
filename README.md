@@ -55,15 +55,15 @@ If the access point does not appear, the ESP may already have saved Wi-Fi creden
 - T-Display left button: cycle through the five display pages.
 - T-Display right button: refresh collection data now.
 - T-Display hold right button: toggle alert preview mode.
-- CYD left-half touch: cycle through the eight display pages.
+- CYD left-half touch: cycle through the seven landscape display pages or five portrait display pages.
 - CYD hold left-half touch: toggle between landscape and portrait layout sets.
 - CYD right-half touch: refresh collection data now.
 - CYD hold right-half touch: toggle alert preview mode.
-- CYD alert checkbox: tap the box to mark the current bins as put out; tap it again to undo before the alert clears.
-- CYD user button short press: cycle through the eight display pages.
+- CYD alert checkbox: tap the box to mark the current bins as put out; in preview mode this only ticks the test alert.
+- CYD user button short press: cycle through the display pages.
 - CYD user button long press: refresh collection data now.
 
-The eighth CYD page is a colour calibration page. Tap the swatch that visually matches the prompted colour; the selected RGB565 values are stored and shown at the bottom of the page.
+Every display page shows a `Page n/count` badge with `L` for landscape or `P` for portrait.
 
 ## Versioning
 

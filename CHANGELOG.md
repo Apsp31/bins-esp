@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.18] - 2026-07-10
+
+- Add visible `Page n/count` badges with portrait/landscape markers so CYD layouts are easier to discuss.
+- Remove the colour picker from the normal CYD page cycle to avoid accidental calibration changes.
+- Allow the preview alert checkbox to be ticked and unticked without saving a real bin acknowledgement.
+
 ## [0.1.17] - 2026-07-10
 
 - Remap CYD UI colours into clearer semantic roles for alert, done, clock, date, General Waste, and Recycling.
