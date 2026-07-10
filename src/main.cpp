@@ -849,14 +849,14 @@ void drawCheckboxAlert(const ServiceDate &svc, bool checked) {
   tft.setTextColor(main, bg);
 
   if (portraitLayoutActive()) {
-    drawAlertCheckbox(24, 74, 54, checked, main, bg);
-    tft.drawString(putOutLabel(svc), 92, 82, 4);
-    tft.drawCentreString(checked ? "Done" : "Put bins out", tft.width() / 2, 150, 4);
+    tft.drawCentreString(putOutLabel(svc), tft.width() / 2, 54, 4);
+    drawAlertCheckbox(20, 94, 48, checked, main, bg);
+    tft.drawCentreString(checked ? "Done" : "Put bins out", tft.width() / 2, 158, 4);
     tft.setTextColor(checked ? TFT_LIGHTGREY : TFT_WHITE, bg);
     tft.drawCentreString(checked ? "Thank you" : "Tonight", tft.width() / 2, 196, 4);
     tft.setTextColor(checked ? TFT_WHITE : TFT_LIGHTGREY, bg);
-    tft.drawCentreString(checked ? conciseDate(svc) : "Before 6am", tft.width() / 2, 238, 4);
-    tft.drawCentreString(localTimeText("%H:%M"), tft.width() / 2, 276, 4);
+    tft.drawCentreString(checked ? conciseDate(svc) : "Before 6am", tft.width() / 2, 230, 4);
+    tft.drawCentreString(localTimeText("%H:%M"), tft.width() / 2, 264, 4);
     drawPageBadge();
     return;
   }
@@ -1383,7 +1383,7 @@ bool pointInAcknowledgementBox(uint16_t x, uint16_t y) {
   if (previewAlert && !nextMainCollection().valid) return false;
   if (!previewAlert && !acknowledgementTarget().valid) return false;
   if (portraitLayoutActive()) {
-    return x >= 12 && x <= 94 && y >= 60 && y <= 144;
+    return x >= 8 && x <= 84 && y >= 84 && y <= 154;
   }
   const int top = largeScreen() ? 62 : 34;
   const int bottom = largeScreen() ? 144 : 92;

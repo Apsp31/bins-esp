@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.22] - 2026-07-10
+
+- Rebalance portrait alert screens so the time clears the page badge and the bin type has a dedicated full-width line.
+
 ## [0.1.21] - 2026-07-10
 
 - Remove the cramped portrait focus layout that could show a stray oversized weekday letter.
