@@ -11,6 +11,7 @@ Self-contained ESP32 reminder display for St Albans bin collections.
 - Caches the latest collection dates locally.
 - Shows a large `PUT OUT TONIGHT` alert from 18:00 the evening before collection until 12:00 on collection day.
 - Shows refuse, recycling, date/time, and Wi-Fi status when idle.
+- Shows current temperature and today's rain chance on portrait page `1P`.
 - Includes a versioned status page with Wi-Fi, IP, postcode, UPRN, last fetch, uptime, and health.
 - Refreshes on boot and every 6 hours.
 

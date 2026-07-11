@@ -20,6 +20,8 @@ constexpr const char *kEndpoint =
     "https://gis.stalbans.gov.uk/NoticeBoard9/VeoliaProxy.NoticeBoard.asmx/"
     "GetServicesByUprnAndNoticeBoard";
 constexpr const char *kQuickSearchEndpoint = "https://gis.stalbans.gov.uk/NoticeBoard9/quicksearch.asmx";
+constexpr const char *kWeatherGeocodingEndpoint = "https://geocoding-api.open-meteo.com/v1/search";
+constexpr const char *kWeatherForecastEndpoint = "https://api.open-meteo.com/v1/forecast";
 constexpr uint32_t kFetchIntervalMs = 6UL * 60UL * 60UL * 1000UL;
 constexpr uint8_t kBaseDisplayModeCount = 5;
 constexpr uint8_t kLargeDisplayModeCount = 7;
@@ -85,8 +87,16 @@ struct BinState {
   bool loaded = false;
 };
 
+struct WeatherState {
+  int temperatureC = 0;
+  int rainChance = -1;
+  time_t lastFetch = 0;
+  bool valid = false;
+};
+
 AppConfig config;
 BinState bins;
+WeatherState weather;
 
 uint16_t uiRed();
 uint16_t uiGreen();
@@ -143,6 +153,21 @@ String compactPostcode(String value) {
   value.toUpperCase();
   value.replace(" ", "");
   return value;
+}
+
+String urlEncode(const String &value) {
+  String encoded;
+  char buffer[4];
+  for (size_t i = 0; i < value.length(); i++) {
+    const char c = value[i];
+    if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+      encoded += c;
+    } else {
+      snprintf(buffer, sizeof(buffer), "%%%02X", static_cast<unsigned char>(c));
+      encoded += buffer;
+    }
+  }
+  return encoded;
 }
 
 time_t parseIsoDateStart(const String &iso) {
@@ -611,6 +636,49 @@ bool fetchBins() {
   bins.lastFetch = time(nullptr);
   bins.loaded = true;
   saveBinCache();
+  return true;
+}
+
+bool fetchWeather() {
+  if (WiFi.status() != WL_CONNECTED) return false;
+
+  WiFiClientSecure client;
+  client.setInsecure();
+  HTTPClient http;
+  const String locationUrl = String(kWeatherGeocodingEndpoint) + "?name=" +
+      urlEncode(compactPostcode(config.postcode)) + "&count=1&countryCode=GB";
+  if (!http.begin(client, locationUrl)) return false;
+  const int locationStatus = http.GET();
+  const String locationResponse = http.getString();
+  http.end();
+  if (locationStatus != 200) return false;
+
+  JsonDocument locationDoc;
+  if (deserializeJson(locationDoc, locationResponse)) return false;
+  JsonObject location = locationDoc["results"][0].as<JsonObject>();
+  if (location.isNull() || !location["latitude"].is<float>() || !location["longitude"].is<float>()) return false;
+
+  const float latitude = location["latitude"].as<float>();
+  const float longitude = location["longitude"].as<float>();
+  const String forecastUrl = String(kWeatherForecastEndpoint) + "?latitude=" + String(latitude, 5) +
+      "&longitude=" + String(longitude, 5) +
+      "&current=temperature_2m&daily=precipitation_probability_max&timezone=Europe%2FLondon&forecast_days=1";
+  if (!http.begin(client, forecastUrl)) return false;
+  const int forecastStatus = http.GET();
+  const String forecastResponse = http.getString();
+  http.end();
+  if (forecastStatus != 200) return false;
+
+  JsonDocument forecastDoc;
+  if (deserializeJson(forecastDoc, forecastResponse)) return false;
+  JsonObject current = forecastDoc["current"].as<JsonObject>();
+  JsonArray rain = forecastDoc["daily"]["precipitation_probability_max"].as<JsonArray>();
+  if (current.isNull() || !current["temperature_2m"].is<float>()) return false;
+
+  weather.temperatureC = static_cast<int>(round(current["temperature_2m"].as<float>()));
+  weather.rainChance = rain.isNull() || rain.size() == 0 ? -1 : rain[0].as<int>();
+  weather.lastFetch = time(nullptr);
+  weather.valid = true;
   return true;
 }
 
@@ -1202,6 +1270,11 @@ void drawPortraitCleanLayout(bool detailed) {
   tft.drawCentreString(localTimeText("%A"), tft.width() / 2, 102, 4);
   tft.setTextColor(uiDate(), TFT_BLACK);
   tft.drawCentreString(localTimeText("%d %B"), tft.width() / 2, 136, 4);
+  if (weather.valid) {
+    String weatherText = String(weather.temperatureC) + "C";
+    if (weather.rainChance >= 0) weatherText += " | Rain " + String(weather.rainChance) + "%";
+    drawCentered(174, weatherText, TFT_LIGHTGREY, 2);
+  }
   tft.drawFastHLine(36, 206, tft.width() - 72, TFT_DARKGREY);
   drawText(34, 226, "Next bin", TFT_LIGHTGREY, 2);
   tft.fillRoundRect(tft.width() - 126, 222, 92, 24, 4, accentFor(first));
@@ -1511,6 +1584,7 @@ void setup() {
 
   drawCentered(88, "Fetching bins", uiClock(), 4);
   fetchBins();
+  fetchWeather();
   drawScreen();
 }
 
@@ -1526,6 +1600,7 @@ void loop() {
   if (nowMs - lastFetchAttemptMs > kFetchIntervalMs) {
     lastFetchAttemptMs = nowMs;
     fetchBins();
+    fetchWeather();
     drawScreen();
   }
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.23] - 2026-07-11
+
+- Add postcode-based Open-Meteo weather to portrait page `1P`, showing current temperature and today's rain chance.
+
 ## [0.1.22] - 2026-07-10
 
 - Rebalance portrait alert screens so the time clears the page badge and the bin type has a dedicated full-width line.
