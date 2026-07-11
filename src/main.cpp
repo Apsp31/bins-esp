@@ -20,7 +20,7 @@ constexpr const char *kEndpoint =
     "https://gis.stalbans.gov.uk/NoticeBoard9/VeoliaProxy.NoticeBoard.asmx/"
     "GetServicesByUprnAndNoticeBoard";
 constexpr const char *kQuickSearchEndpoint = "https://gis.stalbans.gov.uk/NoticeBoard9/quicksearch.asmx";
-constexpr const char *kWeatherGeocodingEndpoint = "https://geocoding-api.open-meteo.com/v1/search";
+constexpr const char *kPostcodeLookupEndpoint = "https://api.postcodes.io/postcodes/";
 constexpr const char *kWeatherForecastEndpoint = "https://api.open-meteo.com/v1/forecast";
 constexpr uint32_t kFetchIntervalMs = 6UL * 60UL * 60UL * 1000UL;
 constexpr uint8_t kBaseDisplayModeCount = 5;
@@ -645,8 +645,7 @@ bool fetchWeather() {
   WiFiClientSecure client;
   client.setInsecure();
   HTTPClient http;
-  const String locationUrl = String(kWeatherGeocodingEndpoint) + "?name=" +
-      urlEncode(compactPostcode(config.postcode)) + "&count=1&countryCode=GB";
+  const String locationUrl = String(kPostcodeLookupEndpoint) + urlEncode(compactPostcode(config.postcode));
   if (!http.begin(client, locationUrl)) return false;
   const int locationStatus = http.GET();
   const String locationResponse = http.getString();
@@ -655,7 +654,7 @@ bool fetchWeather() {
 
   JsonDocument locationDoc;
   if (deserializeJson(locationDoc, locationResponse)) return false;
-  JsonObject location = locationDoc["results"][0].as<JsonObject>();
+  JsonObject location = locationDoc["result"].as<JsonObject>();
   if (location.isNull() || !location["latitude"].is<float>() || !location["longitude"].is<float>()) return false;
 
   const float latitude = location["latitude"].as<float>();

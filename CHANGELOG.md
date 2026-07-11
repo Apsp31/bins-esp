@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.24] - 2026-07-11
+
+- Fix weather location lookup for UK postcodes by using the postcode API before requesting the Open-Meteo forecast.
+
 ## [0.1.23] - 2026-07-11
 
 - Add postcode-based Open-Meteo weather to portrait page `1P`, showing current temperature and today's rain chance.
